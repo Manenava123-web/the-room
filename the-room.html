@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -893,9 +893,18 @@
       <div class="modal-alert" id="pagoAlert"></div>
       <div class="confirm-actions" style="margin-top:16px">
         <button class="btn-outline-dark" type="button" onclick="closePago()">Cancelar</button>
-        <button class="btn-submit" type="button" id="pagoBtnPagar" onclick="procesarPago()">Pagar</button>
+        <button class="btn-submit" type="button" id="pagoBtnPagar" onclick="solicitarConfirmacionPago()">Pagar</button>
       </div>
     </form>
+
+    <!-- Panel de confirmación (oculto hasta que el usuario presione Pagar) -->
+    <div id="pagoConfirmPanel" style="display:none">
+      <div class="pago-confirm-resumen" id="pagoConfirmResumen"></div>
+      <div class="confirm-actions" style="margin-top:16px">
+        <button class="btn-outline-dark" type="button" onclick="cancelarConfirmacionPago()">Regresar</button>
+        <button class="btn-submit" type="button" id="pagoBtnConfirmar" onclick="procesarPago()">Confirmar y pagar</button>
+      </div>
+    </div>
   </div>
 </div>
 
