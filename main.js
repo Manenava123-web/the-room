@@ -1303,13 +1303,18 @@ let misCreditosCyclingVencen = null;
 let misCreditosPilates = 0;
 let misCreditosPilatesVencen = null;
 
+let _openpayDeviceSessionId = null;
+
 function initOpenpay() {
   if (typeof OpenPay === 'undefined') return;
   OpenPay.setId(OPENPAY_MERCHANT_ID);
   OpenPay.setApiKey(OPENPAY_PUBLIC_KEY);
   OpenPay.setSandboxMode(OPENPAY_SANDBOX);
-  OpenPay.deviceData.setup('pago-form', 'deviceSessionId');
+  _openpayDeviceSessionId = OpenPay.deviceData.setup('pago-form', 'deviceSessionId');
 }
+
+// Llamada directa — los scripts están al final del body, el DOM ya está listo
+if (typeof OpenPay !== 'undefined') initOpenpay();
 
 
 async function loadCreditos() {
@@ -1333,12 +1338,19 @@ function _fmtFecha(iso) {
 function _actualizarCreditosBadge() {
   const badge = document.getElementById('creditosBadge');
   if (!badge) return;
-  const cycVence = misCreditosCycling > 0 ? _fmtFecha(misCreditosCyclingVencen) : null;
-  const pilVence = misCreditosPilates > 0 ? _fmtFecha(misCreditosPilatesVencen) : null;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const cycExp = misCreditosCycling > 0 && misCreditosCyclingVencen && misCreditosCyclingVencen < hoy;
+  const pilExp = misCreditosPilates > 0 && misCreditosPilatesVencen && misCreditosPilatesVencen < hoy;
+  const cycSuffix = cycExp
+    ? ' <span class="creditos-vence creditos-exp">· Expirado</span>'
+    : (misCreditosCycling > 0 && misCreditosCyclingVencen ? ` <span class="creditos-vence">· ${_fmtFecha(misCreditosCyclingVencen)}</span>` : '');
+  const pilSuffix = pilExp
+    ? ' <span class="creditos-vence creditos-exp">· Expirado</span>'
+    : (misCreditosPilates > 0 && misCreditosPilatesVencen ? ` <span class="creditos-vence">· ${_fmtFecha(misCreditosPilatesVencen)}</span>` : '');
   badge.innerHTML =
-    `<span>Cycling: <strong>${misCreditosCycling}</strong>${cycVence ? ` <span class="creditos-vence">· ${cycVence}</span>` : ''}</span>` +
+    `<span>Cycling: <strong>${misCreditosCycling}</strong>${cycSuffix}</span>` +
     `<span class="udrop-creditos-sep">·</span>` +
-    `<span>Pilates: <strong>${misCreditosPilates}</strong>${pilVence ? ` <span class="creditos-vence">· ${pilVence}</span>` : ''}</span>`;
+    `<span>Pilates: <strong>${misCreditosPilates}</strong>${pilSuffix}</span>`;
 }
 
 let _PAQUETES_INFO = {};
@@ -1409,7 +1421,6 @@ function seleccionarPaquete(paqueteId, numClases, precio) {
     </div>`;
 
   document.getElementById('pagoAlert').textContent = '';
-  initOpenpay();
   document.getElementById('pagoOverlay').classList.add('show');
 }
 
@@ -1437,6 +1448,16 @@ function procesarPago() {
     return;
   }
 
+  // Priorizar el valor de retorno de setup(); como fallback leer el campo oculto
+  const deviceSessionId = _openpayDeviceSessionId
+    || document.getElementById('deviceSessionId').value;
+  if (!deviceSessionId) {
+    initOpenpay();
+    alertEl.textContent = 'Preparando módulo de seguridad, intenta de nuevo en unos segundos.';
+    btn.disabled = false; btn.textContent = 'Pagar';
+    return;
+  }
+
   OpenPay.token.create({
     holder_name:       titular,
     card_number:       numero,
@@ -1448,7 +1469,8 @@ function procesarPago() {
 
 async function _onOpenpayTokenSuccess(response) {
   const tokenId         = response.data.id;
-  const deviceSessionId = document.getElementById('deviceSessionId').value;
+  const deviceSessionId = _openpayDeviceSessionId
+    || document.getElementById('deviceSessionId').value;
   const paqueteId       = parseInt(document.getElementById('pendingPaqueteId').value);
   const alertEl         = document.getElementById('pagoAlert');
 
