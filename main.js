@@ -1,7 +1,9 @@
 /* ═══════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════ */
-const BASE_URL = 'https://e57e-187-171-151-137.ngrok-free.app/api/v1';
+const BASE_URL    = 'https://e57e-187-171-151-137.ngrok-free.app/api/v1';
+const SERVER_BASE = BASE_URL.replace('/api/v1', '');
+const imgSrc = path => path ? `${SERVER_BASE}${path}?ngrok-skip-browser-warning=1` : null;
 
 /* ═══════════════════════════════════════════
    SESSION
@@ -535,10 +537,9 @@ async function loadInstructores() {
   try {
     const instructores = await api('GET', '/instructores');
     const grid = document.querySelector('.instructores-grid');
-    const serverBase = BASE_URL.replace('/api/v1', '');
     grid.innerHTML = instructores.map(i => {
       const foto = i.fotoUrl
-        ? `<img src="${serverBase}${i.fotoUrl}" class="instructor-photo-img" alt="${i.nombre}">`
+        ? `<img src="${imgSrc(i.fotoUrl)}" class="instructor-photo-img" alt="${i.nombre}">`
         : `<div class="instructor-photo-ph"><span>${i.nombre.charAt(0)}</span></div>`;
       return `
       <div class="instructor-card">
@@ -1940,10 +1941,9 @@ function renderInstructoresAdmin() {
     body.innerHTML = '<div class="agenda-loading">No hay instructores registrados.</div>';
     return;
   }
-  const serverBase = BASE_URL.replace('/api/v1', '');
   body.innerHTML = instructoresAdminData.map(i => {
     const fotoEl = i.fotoUrl
-      ? `<img src="${serverBase}${i.fotoUrl}" class="inst-admin-avatar" alt="${i.nombre}">`
+      ? `<img src="${imgSrc(i.fotoUrl)}" class="inst-admin-avatar" alt="${i.nombre}">`
       : `<div class="inst-admin-avatar-ph">${i.nombre.charAt(0)}</div>`;
     const espLabel = i.especialidad === 'SPINNING' ? 'Indoor Cycling' : 'Pilates';
     return `
@@ -1994,7 +1994,7 @@ function openEditarInstructor(id) {
   const img = document.getElementById('instFotoImg');
   const ini = document.getElementById('instFotoInitial');
   if (inst.fotoUrl) {
-    img.src = `${BASE_URL.replace('/api/v1', '')}${inst.fotoUrl}`;
+    img.src = imgSrc(inst.fotoUrl);
     img.style.display = 'block';
     ini.style.display = 'none';
   } else {
