@@ -1237,6 +1237,38 @@ input::placeholder{color:var(--stone-pale)}
   justify-content:center;
   gap:6px;
 }
+.pago-confirm-resumen{
+  background:var(--bg-light);
+  border:1.5px solid var(--border);
+  border-radius:10px;
+  padding:18px 20px;
+  margin-bottom:4px;
+}
+.pago-confirm-titulo{
+  font-size:15px;
+  font-weight:700;
+  text-align:center;
+  margin:0 0 14px;
+  color:var(--black);
+}
+.pago-confirm-fila{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:7px 0;
+  border-bottom:1px solid var(--border);
+  font-size:13px;
+  color:var(--stone);
+}
+.pago-confirm-fila:last-child{border-bottom:none}
+.pago-confirm-fila strong{color:var(--black);font-weight:600}
+.pago-confirm-total{
+  margin-top:4px;
+  font-size:15px;
+  font-weight:700;
+  color:var(--black)!important;
+}
+.pago-confirm-total strong{font-size:17px;color:var(--accent)!important}
 .pago-lock{ font-size:14px; }
 
 
@@ -1348,6 +1380,7 @@ input::placeholder{color:var(--stone-pale)}
 .udrop-creditos strong{color:var(--black);font-weight:600}
 .udrop-creditos-sep{color:var(--border-dark);font-size:9px}
 .creditos-vence{font-size:10px;color:var(--stone-light);letter-spacing:.04em}
+.creditos-exp{color:var(--danger)!important;font-weight:600}
 .ef-pkg-vigencia{display:block;font-size:10px;color:inherit;opacity:.5;margin-top:1px;letter-spacing:.04em}
 
 /* ═══════════════════════════════════════════
