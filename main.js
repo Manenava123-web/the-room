@@ -1424,6 +1424,42 @@ function seleccionarPaquete(paqueteId, numClases, precio) {
   document.getElementById('pagoOverlay').classList.add('show');
 }
 
+function solicitarConfirmacionPago() {
+  const numero  = document.getElementById('pagoNumero').value.replace(/\s/g, '');
+  const mes     = document.getElementById('pagoMes').value.trim();
+  const anio    = document.getElementById('pagoAnio').value.trim();
+  const cvv     = document.getElementById('pagoCVV').value.trim();
+  const titular = document.getElementById('pagoTitular').value.trim();
+  const alertEl = document.getElementById('pagoAlert');
+  alertEl.textContent = '';
+
+  if (!numero || !mes || !anio || !cvv || !titular) {
+    alertEl.textContent = 'Completa todos los campos de la tarjeta.';
+    return;
+  }
+  if (numero.length < 15) { alertEl.textContent = 'Número de tarjeta inválido.'; return; }
+
+  const paqueteId = parseInt(document.getElementById('pendingPaqueteId').value);
+  const info = _PAQUETES_INFO[paqueteId] || {};
+  const ultimos4 = numero.slice(-4);
+  const monto = Number(info.precio || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+
+  document.getElementById('pagoConfirmResumen').innerHTML = `
+    <p class="pago-confirm-titulo">¿Confirmar pago?</p>
+    <div class="pago-confirm-fila"><span>Paquete</span><strong>${info.nombre || '—'}</strong></div>
+    <div class="pago-confirm-fila"><span>Titular</span><strong>${titular}</strong></div>
+    <div class="pago-confirm-fila"><span>Tarjeta</span><strong>•••• ${ultimos4}</strong></div>
+    <div class="pago-confirm-fila pago-confirm-total"><span>Total</span><strong>${monto}</strong></div>`;
+
+  document.getElementById('pago-form').style.display = 'none';
+  document.getElementById('pagoConfirmPanel').style.display = 'block';
+}
+
+function cancelarConfirmacionPago() {
+  document.getElementById('pagoConfirmPanel').style.display = 'none';
+  document.getElementById('pago-form').style.display = 'block';
+}
+
 function procesarPago() {
   const numero   = document.getElementById('pagoNumero').value.replace(/\s/g, '');
   const mes      = document.getElementById('pagoMes').value.trim();
@@ -1524,6 +1560,8 @@ function formatCardNumber(input) {
 
 function closePago() {
   document.getElementById('pagoOverlay').classList.remove('show');
+  document.getElementById('pagoConfirmPanel').style.display = 'none';
+  document.getElementById('pago-form').style.display = 'block';
 }
 
 function pagoOverlayClick(e) {
