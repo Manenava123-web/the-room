@@ -201,6 +201,9 @@ button{cursor:pointer;font-family:var(--ff-sans)}
 .hero-img-placeholder::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(255,255,255,.12) 40px,rgba(255,255,255,.12) 41px)}
 .hero-img-placeholder .ph-text{font-family:var(--ff-serif);font-size:100px;font-weight:400;color:rgba(255,255,255,.25);font-style:italic;letter-spacing:-.05em;text-align:center;line-height:1}
 
+/* Hero separator */
+.hero-separator{width:100%;height:1px;background:var(--border)}
+
 /* ═══════════════════════════════════════════
    BANNER PROMO
 ═══════════════════════════════════════════ */
@@ -485,6 +488,14 @@ input::placeholder{color:var(--stone-pale)}
 .toast-title{font-weight:500;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
 .toast-msg{font-size:12px;color:var(--stone);font-weight:300}
 
+/* Loading overlay */
+.loading-overlay{position:fixed;inset:0;z-index:3000;background:rgba(13,13,13,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.loading-overlay.show{opacity:1;pointer-events:all}
+.loading-box{background:var(--white);border-radius:12px;padding:36px 48px;display:flex;flex-direction:column;align-items:center;gap:20px;box-shadow:var(--shadow-lg)}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent-dark);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;font-weight:400;letter-spacing:.06em;color:var(--stone);text-align:center}
+
 /* ═══════════════════════════════════════════
    MOBILE NAV DRAWER
 ═══════════════════════════════════════════ */
@@ -494,6 +505,7 @@ input::placeholder{color:var(--stone-pale)}
 .nav-drawer>a{font-size:22px;font-family:var(--ff-serif);font-weight:400;color:var(--black);display:block;padding:14px 0;border-bottom:1px solid var(--border)}
 .nav-drawer>a#drawerDiscCycling,.nav-drawer>a#drawerDiscPilates{color:var(--stone)}
 .nav-drawer>a.nav-disc-active{color:var(--black);font-weight:600;border-left:3px solid var(--black);padding-left:12px}
+.nav-drawer>a#drawerDiscCycling.nav-disc-active,.nav-drawer>a#drawerDiscPilates.nav-disc-active{color:var(--black)}
 .nav-drawer .drawer-auth{display:flex;flex-direction:column;gap:0;margin-top:16px}
 .drawer-user-info{display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:4px}
 .drawer-user-name{font-size:14px;font-weight:500;color:var(--black)}
@@ -716,7 +728,7 @@ input::placeholder{color:var(--stone-pale)}
 .resv-estado.confirmada{color:var(--success)}
 .resv-estado.cancelada{color:var(--danger)}
 .resv-estado.pasado{color:var(--stone-light)}
-.resv-item.pasado{opacity:.6}
+.resv-item.pasado{opacity:.5;pointer-events:none;filter:grayscale(.4)}
 
 /* ═══════════════════════════════════════════
    MODAL GESTIONAR CLASES — CALENDARIO

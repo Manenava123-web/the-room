@@ -76,15 +76,17 @@ function revelarContenido(disc) {
   document.getElementById('drawerDiscPilates').classList.toggle('nav-disc-active', !esCycling);
   document.getElementById('horarios-cycling').style.display    = esCycling ? '' : 'none';
   document.getElementById('horarios-pilates').style.display    = esCycling ? 'none' : '';
-  const cardVisible = document.getElementById(esCycling ? 'clase-card-cycling' : 'clase-card-pilates');
-  const cardHidden  = document.getElementById(esCycling ? 'clase-card-pilates' : 'clase-card-cycling');
-  cardVisible.style.display = '';
-  cardVisible.style.width   = '70%';
-  cardHidden.style.display  = 'none';
-  cardHidden.style.width    = '';
+  document.getElementById('reglamento-cycling').style.display  = esCycling ? '' : 'none';
+  document.getElementById('reglamento-pilates').style.display  = esCycling ? 'none' : '';
+  document.getElementById('navReglamento').style.display       = '';
+  document.getElementById('drawerReglamento').style.display    = '';
+  document.getElementById('clase-card-cycling').style.display = '';
+  document.getElementById('clase-card-cycling').style.width   = '';
+  document.getElementById('clase-card-pilates').style.display = '';
+  document.getElementById('clase-card-pilates').style.width   = '';
   const grid = document.querySelector('.clases-grid');
-  grid.style.display        = 'flex';
-  grid.style.justifyContent = 'center';
+  grid.style.display        = '';
+  grid.style.justifyContent = '';
   document.getElementById('pkg-cycling').style.display = esCycling ? '' : 'none';
   document.getElementById('pkg-pilates').style.display = esCycling ? 'none' : '';
   document.querySelector('.hero-cta').classList.add('visible');
@@ -796,8 +798,7 @@ function buildDrawerAuth(u) {
     <a class="drawer-user-link" onclick="closeDrawer();openEquipo()">Gestionar equipo</a>
     <a class="drawer-user-link" onclick="closeDrawer();openEnCurso()">Clases en curso</a>
     <a class="drawer-user-link" onclick="closeDrawer();openClientes()">Clientes y créditos</a>
-    <a class="drawer-user-link" onclick="closeDrawer();openHistorial()">Historial de ventas</a>` : `
-    <a class="drawer-user-link" onclick="closeDrawer();openMisReservaciones()">Mis reservaciones</a>`;
+    <a class="drawer-user-link" onclick="closeDrawer();openHistorial()">Historial de ventas</a>` : '';
   return `
     <div class="drawer-user-info">
       <span class="drawer-user-name">${u.name}</span>
@@ -806,6 +807,7 @@ function buildDrawerAuth(u) {
       <div class="udrop-creditos-label">Créditos disponibles</div>
       <div class="udrop-creditos" id="creditosBadgeDrawer">cargando...</div>` : ''}
     </div>
+    <a class="drawer-user-link" onclick="closeDrawer();openMisReservaciones()">Mis reservaciones</a>
     ${adminLinks}
     <a class="drawer-user-link danger" onclick="closeDrawer();doLogout()">Cerrar sesión</a>`;
 }
@@ -896,9 +898,13 @@ async function openMisReservaciones() {
         body.innerHTML = '<p class="resv-empty">No tienes reservaciones próximas.</p>';
         return;
       }
-      const hoyCliente = new Date().toISOString().slice(0, 10);
+      const _ahoraC = new Date();
+      const hoyCliente = `${_ahoraC.getFullYear()}-${String(_ahoraC.getMonth()+1).padStart(2,'0')}-${String(_ahoraC.getDate()).padStart(2,'0')}`;
+      const horaActualC = `${String(_ahoraC.getHours()).padStart(2,'0')}:${String(_ahoraC.getMinutes()).padStart(2,'0')}`;
       body.innerHTML = data.map(r => {
-        const pasado = r.fecha < hoyCliente;
+        const pasado = r.fecha < hoyCliente || (r.fecha === hoyCliente && r.hora <= horaActualC);
+        const claseDatetimeC = new Date(`${r.fecha}T${r.hora}`);
+        const puedeCancelar = !pasado && (claseDatetimeC - _ahoraC > 60 * 60 * 1000);
         return `
         <div class="resv-item${pasado ? ' pasado' : ''}" id="resv-${r.id}">
           <div class="resv-badge ${r.tipoClase === 'SPINNING' ? 'spin' : 'pilates'}">
@@ -909,7 +915,7 @@ async function openMisReservaciones() {
             <div class="resv-hora">${r.hora.replace(/^0/,'')} · ${r.instructor}</div>
             ${pasado ? '<div class="resv-estado pasado">PASADO</div>' : ''}
           </div>
-          ${!pasado ? `<button class="resv-cancel" onclick="cancelarReservacion(${r.id}, false)">Cancelar</button>` : ''}
+          ${puedeCancelar ? `<button class="resv-cancel" onclick="cancelarReservacion(${r.id}, false)">Cancelar</button>` : ''}
         </div>`;
       }).join('');
     }
@@ -1027,9 +1033,11 @@ function _renderReservacionesAdmin(data, clienteNombre) {
     return;
   }
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const _ahora = new Date();
+  const hoy = `${_ahora.getFullYear()}-${String(_ahora.getMonth()+1).padStart(2,'0')}-${String(_ahora.getDate()).padStart(2,'0')}`;
+  const horaActual = `${String(_ahora.getHours()).padStart(2,'0')}:${String(_ahora.getMinutes()).padStart(2,'0')}`;
   body.innerHTML = data.map(r => {
-    const pasado = r.fecha < hoy;
+    const pasado = r.fecha < hoy || (r.fecha === hoy && r.hora <= horaActual);
     const estadoClass = pasado && r.estado === 'CONFIRMADA' ? 'pasado' : r.estado.toLowerCase();
     const estadoLabel = pasado && r.estado === 'CONFIRMADA' ? 'PASADO' : r.estado.replace('_', ' ');
     const puedeCancelar = r.estado === 'CONFIRMADA' && !pasado;
@@ -1864,9 +1872,11 @@ function confirmarCobroEfectivo() {
 }
 
 async function _execCobroEfectivo(usuarioId, paqueteId) {
+  showLoading('Registrando cobro…');
   try {
     const data = await api('POST', '/admin/creditos/efectivo', { usuarioId, paqueteId });
     const nombre = document.getElementById('efClienteSearch').value.split('—')[0].trim();
+    hideLoading();
     closeEfectivo();
     showToast(
       'Cobro registrado',
@@ -1874,6 +1884,7 @@ async function _execCobroEfectivo(usuarioId, paqueteId) {
       'success'
     );
   } catch(e) {
+    hideLoading();
     document.getElementById('efAlert').textContent = e.message;
   }
 }
@@ -2356,6 +2367,16 @@ function showToast(title, msg = '', type = '') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3800);
 }
 
+function showLoading(text = 'Procesando…') {
+  const el = document.getElementById('loadingOverlay');
+  document.getElementById('loadingText').textContent = text;
+  el.classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
 /* ═══════════════════════════════════════════
    LUGARES EN CURSO (Admin)
 ═══════════════════════════════════════════ */
@@ -2508,12 +2529,13 @@ function _renderClientes(lista) {
     return `${d}/${m}/${y}`;
   };
   const creditoCell = (n, vence) => {
-    if (n === 0) return '<span style="color:var(--stone-light)">—</span>';
+    const num = n == null ? 0 : Number(n);
+    if (num === 0) return '<span style="color:var(--stone)">0</span>';
     const vStr = fmtFecha(vence);
-    const vDate = vence ? new Date(vence) : null;
+    const vDate = vence ? new Date(vence + 'T00:00:00') : null;
     const vencido = vDate && vDate < hoy;
     const color = vencido ? 'var(--danger)' : 'var(--success)';
-    return `<strong style="color:${color}">${n}</strong> <span class="rpt-vence" style="color:${vencido?'var(--danger)':'var(--stone)'}">vence ${vStr}</span>`;
+    return `<strong style="color:${color}">${num}</strong><span class="rpt-vence" style="color:${vencido?'var(--danger)':'var(--stone)'}"> · vence ${vStr}</span>`;
   };
   body.innerHTML = `
     <table class="rpt-table">

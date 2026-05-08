@@ -1,0 +1,17 @@
+# ── Compilación ───────────────────────────────
+target/
+
+# ── Credenciales locales ───────────────────────
+docker-compose.yml
+
+# ── Archivos subidos en runtime ────────────────
+uploads/
+
+# ── IDE ────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+
+# ── Herramientas internas ──────────────────────
+.claude/
+migrate_horarios.sql
