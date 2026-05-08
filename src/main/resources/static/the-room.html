@@ -77,6 +77,46 @@
   </div>
 </section>
 
+<div class="hero-separator"></div>
+
+<!-- ══════════ CLASES ══════════ -->
+<section class="clases-section" id="clases">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag">Disciplinas</span>
+      <h2>Dos mundos,<br>un solo <em>propósito.</em></h2>
+      <div class="divider-line"></div>
+    </div>
+  </div>
+  <div class="clases-grid" style="max-width:1200px;margin:0 auto">
+    <div class="clase-card" id="clase-card-cycling">
+      <div class="clase-num">01</div>
+      <div class="clase-tag tag">Alta intensidad</div>
+      <h3 class="clase-title">Indoor<br><em>Cycling</em></h3>
+      <p class="clase-desc">Pedalea al ritmo de la música con instructores que te llevan al límite. Quema calorías, mejora tu resistencia cardiovascular y vive la energía colectiva de la sala.</p>
+      <div class="clase-details">
+        <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">50 minutos</span></div>
+        <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="capacidadCycling">15 bicicletas</span></div>
+        <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Todos los niveles</span></div>
+        <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Incluido en el estudio</span></div>
+      </div>
+      <a class="btn-primary" href="#agenda" onclick="revelarContenido('spinning');buildAgenda('spinning')">Reservar lugar</a>
+    </div>
+    <div class="clase-card" id="clase-card-pilates">
+      <div class="clase-num">02</div>
+      <div class="clase-tag tag">Control &amp; fuerza</div>
+      <h3 class="clase-title">Pilates<br><em>Reformer</em></h3>
+      <p class="clase-desc">Conecta mente y cuerpo a través de movimientos controlados sobre el reformer. Fortalece el core, mejora la postura y recupera la movilidad de forma segura y efectiva.</p>
+      <div class="clase-details">
+        <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">60 minutos</span></div>
+        <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="capacidadPilates">7 reformers</span></div>
+        <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Principiante / Avanzado</span></div>
+        <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Reformer incluido</span></div>
+      </div>
+      <a class="btn-primary" href="#agenda" onclick="revelarContenido('pilates');buildAgenda('pilates')">Reservar lugar</a>
+    </div>
+  </div>
+</section>
 
 <!-- ══════════ PROMO BANNER ══════════ -->
 <div class="promo-banner contenido-disciplina">
@@ -213,45 +253,6 @@
       </div>
     </div>
 
-  </div>
-</section>
-
-<!-- ══════════ CLASES ══════════ -->
-<section class="clases-section contenido-disciplina" id="clases">
-  <div class="container">
-    <div class="section-header">
-      <span class="tag">Disciplinas</span>
-      <h2>Dos mundos,<br>un solo <em>propósito.</em></h2>
-      <div class="divider-line"></div>
-    </div>
-  </div>
-  <div class="clases-grid" style="max-width:1200px;margin:0 auto">
-    <div class="clase-card" id="clase-card-cycling">
-      <div class="clase-num">01</div>
-      <div class="clase-tag tag">Alta intensidad</div>
-      <h3 class="clase-title">Indoor<br><em>Cycling</em></h3>
-      <p class="clase-desc">Pedalea al ritmo de la música con instructores que te llevan al límite. Quema calorías, mejora tu resistencia cardiovascular y vive la energía colectiva de la sala.</p>
-      <div class="clase-details">
-        <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">50 minutos</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="capacidadCycling">15 bicicletas</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Todos los niveles</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Incluido en el estudio</span></div>
-      </div>
-      <a class="btn-primary" href="#agenda" onclick="revelarContenido('spinning');buildAgenda('spinning')">Reservar lugar</a>
-    </div>
-    <div class="clase-card" id="clase-card-pilates">
-      <div class="clase-num">02</div>
-      <div class="clase-tag tag">Control &amp; fuerza</div>
-      <h3 class="clase-title">Pilates<br><em>Reformer</em></h3>
-      <p class="clase-desc">Conecta mente y cuerpo a través de movimientos controlados sobre el reformer. Fortalece el core, mejora la postura y recupera la movilidad de forma segura y efectiva.</p>
-      <div class="clase-details">
-        <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">60 minutos</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="capacidadPilates">7 reformers</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Principiante / Avanzado</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Reformer incluido</span></div>
-      </div>
-      <a class="btn-primary" href="#agenda" onclick="revelarContenido('pilates');buildAgenda('pilates')">Reservar lugar</a>
-    </div>
   </div>
 </section>
 
@@ -1068,6 +1069,14 @@
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <p class="loading-text" id="loadingText">Procesando…</p>
   </div>
 </div>
 

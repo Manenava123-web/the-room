@@ -225,6 +225,10 @@ public class ReservacionService {
             throw new AppException("Solo se pueden cancelar reservaciones confirmadas", HttpStatus.BAD_REQUEST);
         }
 
+        if (reservacion.getFecha().isBefore(LocalDate.now())) {
+            throw new AppException("No se puede cancelar una reservación de una clase que ya pasó", HttpStatus.BAD_REQUEST);
+        }
+
         reservacion.setEstado(EstadoReservacion.CANCELADA);
         reservacion.setFechaCancelacion(LocalDateTime.now());
         reservacionRepository.save(reservacion);
