@@ -798,8 +798,7 @@ function buildDrawerAuth(u) {
     <a class="drawer-user-link" onclick="closeDrawer();openEquipo()">Gestionar equipo</a>
     <a class="drawer-user-link" onclick="closeDrawer();openEnCurso()">Clases en curso</a>
     <a class="drawer-user-link" onclick="closeDrawer();openClientes()">Clientes y créditos</a>
-    <a class="drawer-user-link" onclick="closeDrawer();openHistorial()">Historial de ventas</a>` : `
-    <a class="drawer-user-link" onclick="closeDrawer();openMisReservaciones()">Mis reservaciones</a>`;
+    <a class="drawer-user-link" onclick="closeDrawer();openHistorial()">Historial de ventas</a>` : '';
   return `
     <div class="drawer-user-info">
       <span class="drawer-user-name">${u.name}</span>
@@ -808,6 +807,7 @@ function buildDrawerAuth(u) {
       <div class="udrop-creditos-label">Créditos disponibles</div>
       <div class="udrop-creditos" id="creditosBadgeDrawer">cargando...</div>` : ''}
     </div>
+    <a class="drawer-user-link" onclick="closeDrawer();openMisReservaciones()">Mis reservaciones</a>
     ${adminLinks}
     <a class="drawer-user-link danger" onclick="closeDrawer();doLogout()">Cerrar sesión</a>`;
 }
