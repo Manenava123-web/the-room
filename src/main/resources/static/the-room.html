@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>THE ROOM — Indoor Cycling & Pilates Studio</title>
+<link rel="icon" type="image/jpeg" href="images/logo.jpeg"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="styles.css?v=18"/>
@@ -19,7 +20,7 @@
     <li><a id="navDiscPilates" href="#agenda" onclick="revelarContenido('pilates');buildAgenda('pilates')">Pilates Studio</a></li>
     <!-- <li><a href="#clases" onclick="revelarContenido()">Clases</a></li> -->
     <!-- <li><a href="#paquetes" onclick="revelarContenido()">Paquetes</a></li> -->
-    <li><a href="#reglamento">Reglamento</a></li>
+    <li id="navReglamento" style="display:none"><a href="#reglamento">Reglamento</a></li>
     <li><a href="#instructores">Instructores</a></li>
     <li><a href="#ubicacion">Ubicación</a></li>
   </ul>
@@ -37,7 +38,7 @@
   <button class="drawer-close" onclick="closeDrawer()">✕</button>
   <a id="drawerDiscCycling" href="#agenda" onclick="revelarContenido('spinning');buildAgenda('spinning');closeDrawer()">Indoor Cycling</a>
   <a id="drawerDiscPilates" href="#agenda" onclick="revelarContenido('pilates');buildAgenda('pilates');closeDrawer()">Pilates Studio</a>
-  <a href="#reglamento" onclick="closeDrawer()">Reglamento</a>
+  <a id="drawerReglamento" href="#reglamento" onclick="closeDrawer()" style="display:none">Reglamento</a>
   <a href="#instructores" onclick="closeDrawer()">Instructores</a>
   <a href="#ubicacion" onclick="closeDrawer()">Ubicación</a>
   <div class="drawer-auth" id="drawerAuth">
@@ -280,44 +281,91 @@
 </section>
 
 <!-- ══════════ REGLAMENTO ══════════ -->
-<section class="reglamento-section" id="reglamento">
+<section class="reglamento-section contenido-disciplina" id="reglamento">
   <div class="container">
-    <div class="section-header">
-      <h2>Reglamento</h2>
-      <div class="divider-line"></div>
+
+    <!-- Reglamento Indoor Cycling -->
+    <div id="reglamento-cycling">
+      <div class="section-header">
+        <span class="tag">Indoor Cycling</span>
+        <h2>Reglamento</h2>
+        <div class="divider-line"></div>
+      </div>
+      <div class="reglamento-grid">
+        <div class="regla-card">
+          <span class="regla-num">01</span>
+          <div class="regla-title">Vestimenta</div>
+          <p class="regla-desc">Ropa deportiva cómoda y transpirable. Tenis cerrados obligatorios. Calcetas requeridas — antideslizantes de preferencia; las vendemos en el estudio.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">02</span>
+          <div class="regla-title">Hidratación</div>
+          <p class="regla-desc">Trae al menos 500 ml de agua. No se permite consumir alimentos dentro de la sala durante la sesión.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">03</span>
+          <div class="regla-title">Ajuste de bicicleta</div>
+          <p class="regla-desc">El instructor ajustará el sillín y el manubrio a tu medida. Si es tu primera clase, llega 5 minutos antes para una configuración correcta.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">04</span>
+          <div class="regla-title">Ingreso a la sala</div>
+          <p class="regla-desc">No se permite entrar una vez iniciada la clase. El ingreso tardío representa un riesgo para ti y una distracción para el grupo.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">05</span>
+          <div class="regla-title">Salud y condición física</div>
+          <p class="regla-desc">Si tienes lesiones, problemas cardíacos, hipertensión o estás embarazada, consulta a tu médico antes de tu primera sesión e infórmale al instructor.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">06</span>
+          <div class="regla-title">Conducta en sala</div>
+          <p class="regla-desc">Teléfonos en silencio y guardados durante toda la clase. Sigue en todo momento las indicaciones del instructor y respeta el ritmo del grupo.</p>
+        </div>
+      </div>
     </div>
-    <div class="reglamento-grid">
-      <div class="regla-card">
-        <span class="regla-num">01</span>
-        <div class="regla-title">Cancelaciones</div>
-        <p class="regla-desc">Cancelación con 1 día de anticipación (24 hrs). Si no cancelas con el tiempo necesario, la clase se da por asistida.</p>
+
+    <!-- Reglamento Pilates -->
+    <div id="reglamento-pilates" style="display:none">
+      <div class="section-header">
+        <span class="tag">Pilates Reformer</span>
+        <h2>Reglamento</h2>
+        <div class="divider-line"></div>
       </div>
-      <div class="regla-card">
-        <span class="regla-num">02</span>
-        <div class="regla-title">Vestimenta</div>
-        <p class="regla-desc">Traer ropa deportiva y uso obligatorio de calcetas (de preferencia antideslizantes). Tenemos a la venta en el estudio.</p>
-      </div>
-      <div class="regla-card">
-        <span class="regla-num">03</span>
-        <div class="regla-title">No hay devoluciones</div>
-        <p class="regla-desc">En caso de faltar a tu clase (individual o paquete), no hay reembolso bajo ninguna circunstancia. Puedes cancelarla y elegir otro día con 24 hrs de anticipación.</p>
-      </div>
-      <div class="regla-card">
-        <span class="regla-num">04</span>
-        <div class="regla-title">Reservaciones y pagos</div>
-        <p class="regla-desc">Puedes hacerlo directamente desde esta página o directamente en nuestro estudio pagando en efectivo, si hay disponibilidad en el horario deseado.</p>
-      </div>
-      <div class="regla-card">
-        <span class="regla-num">05</span>
-        <div class="regla-title">Tolerancia</div>
-        <p class="regla-desc">Las personas que hayan agendado y pagado pueden llegar al minuto que deseen; las clases comienzan puntuales. Si no reservaste y no hay cupo, puedes esperar, pero no podemos garantizarte un lugar: todo es con previa reservación.</p>
-      </div>
-      <div class="regla-card">
-        <span class="regla-num">06</span>
-        <div class="regla-title">Intransferible</div>
-        <p class="regla-desc">No podrás cederle tu clase a otra persona. Es exclusiva para ti.</p>
+      <div class="reglamento-grid">
+        <div class="regla-card">
+          <span class="regla-num">01</span>
+          <div class="regla-title">Cancelaciones</div>
+          <p class="regla-desc">Cancelación con 1 día de anticipación (24 hrs). Si no cancelas con el tiempo necesario, la clase se da por asistida.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">02</span>
+          <div class="regla-title">Vestimenta</div>
+          <p class="regla-desc">Traer ropa deportiva y uso obligatorio de calcetas (de preferencia antideslizantes). Tenemos a la venta en el estudio.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">03</span>
+          <div class="regla-title">No hay devoluciones</div>
+          <p class="regla-desc">En caso de faltar a tu clase (individual o paquete), no hay reembolso bajo ninguna circunstancia. Puedes cancelarla y elegir otro día con 24 hrs de anticipación.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">04</span>
+          <div class="regla-title">Reservaciones y pagos</div>
+          <p class="regla-desc">Puedes hacerlo directamente desde esta página o directamente en nuestro estudio pagando en efectivo, si hay disponibilidad en el horario deseado.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">05</span>
+          <div class="regla-title">Tolerancia</div>
+          <p class="regla-desc">Las clases comienzan puntuales. Si no reservaste y no hay cupo, puedes esperar, pero no podemos garantizarte un lugar: todo es con previa reservación.</p>
+        </div>
+        <div class="regla-card">
+          <span class="regla-num">06</span>
+          <div class="regla-title">Intransferible</div>
+          <p class="regla-desc">No podrás cederle tu clase a otra persona. Es exclusiva para ti.</p>
+        </div>
       </div>
     </div>
+
   </div>
 </section>
 

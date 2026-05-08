@@ -76,6 +76,10 @@ function revelarContenido(disc) {
   document.getElementById('drawerDiscPilates').classList.toggle('nav-disc-active', !esCycling);
   document.getElementById('horarios-cycling').style.display    = esCycling ? '' : 'none';
   document.getElementById('horarios-pilates').style.display    = esCycling ? 'none' : '';
+  document.getElementById('reglamento-cycling').style.display  = esCycling ? '' : 'none';
+  document.getElementById('reglamento-pilates').style.display  = esCycling ? 'none' : '';
+  document.getElementById('navReglamento').style.display       = '';
+  document.getElementById('drawerReglamento').style.display    = '';
   document.getElementById('clase-card-cycling').style.display = '';
   document.getElementById('clase-card-cycling').style.width   = '';
   document.getElementById('clase-card-pilates').style.display = '';

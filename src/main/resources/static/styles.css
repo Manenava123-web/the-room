@@ -505,6 +505,7 @@ input::placeholder{color:var(--stone-pale)}
 .nav-drawer>a{font-size:22px;font-family:var(--ff-serif);font-weight:400;color:var(--black);display:block;padding:14px 0;border-bottom:1px solid var(--border)}
 .nav-drawer>a#drawerDiscCycling,.nav-drawer>a#drawerDiscPilates{color:var(--stone)}
 .nav-drawer>a.nav-disc-active{color:var(--black);font-weight:600;border-left:3px solid var(--black);padding-left:12px}
+.nav-drawer>a#drawerDiscCycling.nav-disc-active,.nav-drawer>a#drawerDiscPilates.nav-disc-active{color:var(--black)}
 .nav-drawer .drawer-auth{display:flex;flex-direction:column;gap:0;margin-top:16px}
 .drawer-user-info{display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:4px}
 .drawer-user-name{font-size:14px;font-weight:500;color:var(--black)}
