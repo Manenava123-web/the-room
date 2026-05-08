@@ -903,6 +903,8 @@ async function openMisReservaciones() {
       const horaActualC = `${String(_ahoraC.getHours()).padStart(2,'0')}:${String(_ahoraC.getMinutes()).padStart(2,'0')}`;
       body.innerHTML = data.map(r => {
         const pasado = r.fecha < hoyCliente || (r.fecha === hoyCliente && r.hora <= horaActualC);
+        const claseDatetimeC = new Date(`${r.fecha}T${r.hora}`);
+        const puedeCancelar = !pasado && (claseDatetimeC - _ahoraC > 60 * 60 * 1000);
         return `
         <div class="resv-item${pasado ? ' pasado' : ''}" id="resv-${r.id}">
           <div class="resv-badge ${r.tipoClase === 'SPINNING' ? 'spin' : 'pilates'}">
@@ -913,7 +915,7 @@ async function openMisReservaciones() {
             <div class="resv-hora">${r.hora.replace(/^0/,'')} · ${r.instructor}</div>
             ${pasado ? '<div class="resv-estado pasado">PASADO</div>' : ''}
           </div>
-          ${!pasado ? `<button class="resv-cancel" onclick="cancelarReservacion(${r.id}, false)">Cancelar</button>` : ''}
+          ${puedeCancelar ? `<button class="resv-cancel" onclick="cancelarReservacion(${r.id}, false)">Cancelar</button>` : ''}
         </div>`;
       }).join('');
     }
