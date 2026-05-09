@@ -7,7 +7,7 @@
 <link rel="icon" type="image/jpeg" href="images/logo.jpeg"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="styles.css?v=18"/>
+<link rel="stylesheet" href="styles.css?v=19"/>
 </head>
 <body>
 
@@ -95,11 +95,11 @@
       <div class="clase-tag tag">Alta intensidad</div>
       <h3 class="clase-title">Indoor<br><em>Cycling</em></h3>
       <p class="clase-desc">Pedalea al ritmo de la música con instructores que te llevan al límite. Quema calorías, mejora tu resistencia cardiovascular y vive la energía colectiva de la sala.</p>
-      <div class="clase-details">
-        <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">50 minutos</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="capacidadCycling">15 bicicletas</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Todos los niveles</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Incluido en el estudio</span></div>
+      <div class="clase-gallery clase-gallery--4">
+        <div class="gallery-img"><img src="images/cycling-g1.jpeg" alt="Indoor Cycling"/></div>
+        <div class="gallery-img"><img src="images/cycling-g2.jpeg" alt="Indoor Cycling"/></div>
+        <div class="gallery-img"><img src="images/cycling-g3.jpeg" alt="Indoor Cycling"/></div>
+        <div class="gallery-img"><img src="images/cycling-g4.jpeg" alt="Indoor Cycling"/></div>
       </div>
       <a class="btn-primary" href="#agenda" onclick="revelarContenido('spinning');buildAgenda('spinning')">Reservar lugar</a>
     </div>
@@ -108,11 +108,10 @@
       <div class="clase-tag tag">Control &amp; fuerza</div>
       <h3 class="clase-title">Pilates<br><em>Reformer</em></h3>
       <p class="clase-desc">Conecta mente y cuerpo a través de movimientos controlados sobre el reformer. Fortalece el core, mejora la postura y recupera la movilidad de forma segura y efectiva.</p>
-      <div class="clase-details">
-        <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">60 minutos</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="capacidadPilates">7 reformers</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Principiante / Avanzado</span></div>
-        <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Reformer incluido</span></div>
+      <div class="clase-gallery clase-gallery--3">
+        <div class="gallery-img"><img src="images/pilates-g1.jpeg" alt="Pilates Reformer"/></div>
+        <div class="gallery-img"><img src="images/pilates-g2.jpeg" alt="Pilates Reformer"/></div>
+        <div class="gallery-img"><img src="images/pilates-g3.jpeg" alt="Pilates Reformer"/></div>
       </div>
       <a class="btn-primary" href="#agenda" onclick="revelarContenido('pilates');buildAgenda('pilates')">Reservar lugar</a>
     </div>
@@ -257,6 +256,45 @@
   </div>
 </section>
 
+<!-- ══════════ DISCIPLINA DESTACADA ══════════ -->
+<section class="disc-feat-section contenido-disciplina">
+  <div class="container">
+    <div class="disc-feat-wrap">
+
+      <!-- Indoor Cycling -->
+      <div id="discFeatCycling" class="clase-card" style="display:none">
+        <div class="clase-num">01</div>
+        <div class="clase-tag tag">Alta intensidad</div>
+        <h3 class="clase-title">Indoor<br><em>Cycling</em></h3>
+        <p class="clase-desc">Pedalea al ritmo de la música con instructores que te llevan al límite. Quema calorías, mejora tu resistencia cardiovascular y vive la energía colectiva de la sala.</p>
+        <div class="clase-details">
+          <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">50 minutos</span></div>
+          <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="discCapCycling">15 bicicletas</span></div>
+          <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Todos los niveles</span></div>
+          <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Incluido en el estudio</span></div>
+        </div>
+        <a class="btn-primary" href="#agenda">Reservar lugar</a>
+      </div>
+
+      <!-- Pilates Reformer -->
+      <div id="discFeatPilates" class="clase-card" style="display:none">
+        <div class="clase-num">02</div>
+        <div class="clase-tag tag">Control &amp; fuerza</div>
+        <h3 class="clase-title">Pilates<br><em>Reformer</em></h3>
+        <p class="clase-desc">Conecta mente y cuerpo a través de movimientos controlados sobre el reformer. Fortalece el core, mejora la postura y recupera la movilidad de forma segura y efectiva.</p>
+        <div class="clase-details">
+          <div class="clase-detail-row"><span class="clase-detail-label">Duración</span><span class="clase-detail-val">60 minutos</span></div>
+          <div class="clase-detail-row"><span class="clase-detail-label">Capacidad</span><span class="clase-detail-val" id="discCapPilates">7 reformers</span></div>
+          <div class="clase-detail-row"><span class="clase-detail-label">Nivel</span><span class="clase-detail-val">Principiante / Avanzado</span></div>
+          <div class="clase-detail-row"><span class="clase-detail-label">Equipo</span><span class="clase-detail-val">Reformer incluido</span></div>
+        </div>
+        <a class="btn-primary" href="#agenda">Reservar lugar</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- ══════════ PAQUETES ══════════ -->
 <section class="paquetes-section contenido-disciplina" id="paquetes">
   <div class="container">
@@ -295,7 +333,7 @@
         <div class="regla-card">
           <span class="regla-num">01</span>
           <div class="regla-title">Vestimenta</div>
-          <p class="regla-desc">Ropa deportiva cómoda y transpirable. Tenis cerrados obligatorios. Calcetas requeridas — antideslizantes de preferencia; las vendemos en el estudio.</p>
+          <p class="regla-desc">Ropa deportiva cómoda y transpirable. Tenis cerrados obligatorios.</p>
         </div>
         <div class="regla-card">
           <span class="regla-num">02</span>
@@ -305,7 +343,7 @@
         <div class="regla-card">
           <span class="regla-num">03</span>
           <div class="regla-title">Ajuste de bicicleta</div>
-          <p class="regla-desc">El instructor ajustará el sillín y el manubrio a tu medida. Si es tu primera clase, llega 5 minutos antes para una configuración correcta.</p>
+          <p class="regla-desc">El instructor ajustará el sillín y el manubrio a tu medida. Si es tu primera clase, llega 10 minutos antes para una configuración correcta.</p>
         </div>
         <div class="regla-card">
           <span class="regla-num">04</span>
@@ -320,7 +358,7 @@
         <div class="regla-card">
           <span class="regla-num">06</span>
           <div class="regla-title">Conducta en sala</div>
-          <p class="regla-desc">Teléfonos en silencio y guardados durante toda la clase. Sigue en todo momento las indicaciones del instructor y respeta el ritmo del grupo.</p>
+          <p class="regla-desc">Prohibido el uso del teléfono dentro de la sala(Si vas a grabar una historia o video, grabas e inmediatamente lo guardas). Sigue en todo momento las indicaciones del instructor y respeta el ritmo del grupo.</p>
         </div>
       </div>
     </div>
@@ -1136,6 +1174,6 @@
 
 <script src="https://js.openpay.mx/openpay.v1.min.js"></script>
 <script src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
-<script src="main.js?v=18"></script>
+<script src="main.js?v=19"></script>
 </body>
 </html>

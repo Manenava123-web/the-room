@@ -89,6 +89,8 @@ function revelarContenido(disc) {
   grid.style.justifyContent = '';
   document.getElementById('pkg-cycling').style.display = esCycling ? '' : 'none';
   document.getElementById('pkg-pilates').style.display = esCycling ? 'none' : '';
+  document.getElementById('discFeatCycling').style.display = esCycling ? '' : 'none';
+  document.getElementById('discFeatPilates').style.display = esCycling ? 'none' : '';
   document.querySelector('.hero-cta').classList.add('visible');
 }
 
@@ -1104,9 +1106,10 @@ function reservOverlayClick(e) { if (e.target === document.getElementById('reser
 ═══════════════════════════════════════════ */
 const DIA_LABEL = { LUNES:'Lun', MARTES:'Mar', MIERCOLES:'Mié', JUEVES:'Jue', VIERNES:'Vie' };
 
-let clasesAdminData  = [];
-let instructoresData = [];
-let clasesAdminFiltro = 'todos';
+let clasesAdminData        = [];
+let instructoresData       = [];
+let clasesAdminFiltro      = 'todos';
+let clasesAdminWeekOffset  = 0;
 
 async function openGestionClases() {
   document.getElementById('udrop')?.classList.remove('open');
@@ -1119,7 +1122,8 @@ async function openGestionClases() {
       api('GET', '/admin/clases'),
       api('GET', '/admin/instructores')
     ]);
-    clasesAdminFiltro = 'todos';
+    clasesAdminFiltro     = 'todos';
+    clasesAdminWeekOffset = 0;
     document.querySelectorAll('#clasesFilterBar .filter-btn').forEach((b,i) => b.classList.toggle('active', i===0));
     renderClasesAdmin();
   } catch(e) {
@@ -1133,6 +1137,9 @@ function filtrarClasesAdmin(btn, filtro) {
   btn.classList.add('active');
   renderClasesAdmin();
 }
+
+function adminPrevWeek() { if (clasesAdminWeekOffset > 0) { clasesAdminWeekOffset--; renderClasesAdmin(); } }
+function adminNextWeek() { clasesAdminWeekOffset++; renderClasesAdmin(); }
 
 function renderClasesAdmin() {
   const body = document.getElementById('clasesAdminBody');
@@ -1149,8 +1156,8 @@ function renderClasesAdmin() {
 
   const horas = [...new Set(clasesAdminData.filter(c => c.diaSemana in DIA_LABEL).map(c => c.hora))].sort();
 
-  // Calcular fechas Lun–Vie de la semana actual
-  const monday  = getMonday(0);
+  // Calcular fechas Lun–Vie de la semana seleccionada
+  const monday  = getMonday(clasesAdminWeekOffset);
   const friday  = new Date(monday); friday.setDate(monday.getDate() + 4);
   const todayMs = new Date().setHours(0,0,0,0);
   const fmtD    = d => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
@@ -1162,8 +1169,14 @@ function renderClasesAdmin() {
     return { num: d.getDate(), isPast: d.getTime() < todayMs };
   });
 
-  // Construir grid calendario
-  let html = `<div class="admin-week-label">${weekStr}</div>`;
+  // Nav de semana + label
+  const prevDisabled = clasesAdminWeekOffset <= 0 ? 'disabled' : '';
+  let html = `
+    <div class="week-nav" style="margin-bottom:16px">
+      <button class="week-nav-btn" onclick="adminPrevWeek()" ${prevDisabled} aria-label="Semana anterior">&#8592;</button>
+      <span class="week-label">${weekStr}</span>
+      <button class="week-nav-btn" onclick="adminNextWeek()" aria-label="Semana siguiente">&#8594;</button>
+    </div>`;
   html += '<div class="admin-cal-grid">';
 
   // Esquina
@@ -2714,9 +2727,9 @@ async function loadCapacidad() {
     const data = await api('GET', '/clases/equipo');
     data.forEach(e => {
       if (e.tipoClase === 'SPINNING') {
-        document.getElementById('capacidadCycling').textContent = `${e.cantidad} bicicletas`;
+        document.getElementById('discCapCycling').textContent = `${e.cantidad} bicicletas`;
       } else if (e.tipoClase === 'PILATES') {
-        document.getElementById('capacidadPilates').textContent = `${e.cantidad} reformers`;
+        document.getElementById('discCapPilates').textContent = `${e.cantidad} reformers`;
       }
     });
   } catch(_) {}
