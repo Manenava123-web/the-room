@@ -118,8 +118,8 @@ public class ReservacionService {
         if (fecha.isEqual(hoy)) {
             LocalTime ahora = LocalTime.now();
             LocalTime inicioClase = LocalTime.parse(reservacion.getClase().getHora());
-            if (!ahora.isBefore(inicioClase)) {
-                throw new AppException("La clase ya comenzó, no es posible cancelar", HttpStatus.BAD_REQUEST);
+            if (!ahora.isBefore(inicioClase.minusHours(1))) {
+                throw new AppException("Solo puedes cancelar hasta 1 hora antes del inicio de la clase", HttpStatus.BAD_REQUEST);
             }
         }
 
@@ -223,6 +223,10 @@ public class ReservacionService {
 
         if (reservacion.getEstado() != EstadoReservacion.CONFIRMADA) {
             throw new AppException("Solo se pueden cancelar reservaciones confirmadas", HttpStatus.BAD_REQUEST);
+        }
+
+        if (reservacion.getFecha().isBefore(LocalDate.now())) {
+            throw new AppException("No se puede cancelar una reservación de una clase que ya pasó", HttpStatus.BAD_REQUEST);
         }
 
         reservacion.setEstado(EstadoReservacion.CANCELADA);
