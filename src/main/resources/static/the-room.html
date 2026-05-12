@@ -975,6 +975,27 @@
   </div>
 </div>
 
+<!-- MODAL PAGO EN LÍNEA DESHABILITADO -->
+<div class="overlay" id="pagoDeshabilitadoOverlay" onclick="if(event.target===this)closePagoDeshabilitado()">
+  <div class="modal modal-sm">
+    <button class="modal-close" onclick="closePagoDeshabilitado()">✕</button>
+    <div class="modal-logo">The <em>Room</em></div>
+    <h2 class="modal-title">Pago en línea no disponible</h2>
+    <div style="text-align:center;padding:8px 0 20px">
+      <div style="font-size:48px;margin-bottom:16px">🏫</div>
+      <p style="color:var(--text-muted,#666);line-height:1.6;margin:0 0 8px">
+        Por el momento el pago en línea no se encuentra disponible.
+      </p>
+      <p style="color:var(--text-muted,#666);line-height:1.6;margin:0">
+        Para adquirir tu paquete de clases, acude directamente al estudio y realiza tu pago en caja.
+      </p>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn-submit" style="width:100%" onclick="closePagoDeshabilitado()">Entendido</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CLASES EN CURSO (Admin) -->
 <div class="overlay" id="enCursoOverlay" onclick="enCursoOverlayClick(event)">
   <div class="modal modal-md">

@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/clases/**").permitAll()
                         .requestMatchers("/api/v1/instructores/**").permitAll()
                         .requestMatchers("/api/v1/pagos/paquetes").permitAll()
+                        .requestMatchers("/api/v1/pagos/config").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         // Solo admin
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
