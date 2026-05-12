@@ -1442,6 +1442,8 @@ const OPENPAY_MERCHANT_ID = 'men5pa8eci4oyvpzolxe';
 const OPENPAY_PUBLIC_KEY  = 'pk_8ae07f8dbe4342d7a8297a7be69eb71e';
 const OPENPAY_SANDBOX     = true;
 
+let _pagoEnLineaHabilitado = true;
+
 let misCreditosCycling = 0;
 let misCreditosCyclingVencen = null;
 let misCreditosPilates = 0;
@@ -1460,6 +1462,21 @@ function initOpenpay() {
 // Llamada directa — los scripts están al final del body, el DOM ya está listo
 if (typeof OpenPay !== 'undefined') initOpenpay();
 
+
+async function loadPagoConfig() {
+  try {
+    const data = await api('GET', '/pagos/config');
+    _pagoEnLineaHabilitado = data.pagoEnLineaHabilitado ?? true;
+  } catch(_) {}
+}
+
+function openPagoDeshabilitado() {
+  document.getElementById('pagoDeshabilitadoOverlay').classList.add('show');
+}
+
+function closePagoDeshabilitado() {
+  document.getElementById('pagoDeshabilitadoOverlay').classList.remove('show');
+}
 
 async function loadCreditos() {
   if (!getToken() || !currentUser || currentUser.rol === 'ADMIN') return;
@@ -1546,6 +1563,10 @@ function seleccionarPaquete(paqueteId, numClases, precio) {
   }
   if (currentUser.rol === 'ADMIN') {
     showToast('Solo clientes', 'Los administradores no compran paquetes.');
+    return;
+  }
+  if (!_pagoEnLineaHabilitado) {
+    openPagoDeshabilitado();
     return;
   }
 
@@ -2744,6 +2765,7 @@ async function loadCapacidad() {
   }
   buildAgenda();
   loadInstructores();
+  loadPagoConfig();
   loadCreditos();
   loadPaquetes();
   loadCapacidad();

@@ -3,7 +3,9 @@ package com.theroom.backend.controller;
 import com.theroom.backend.dto.*;
 import com.theroom.backend.service.PagoService;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +17,14 @@ import org.springframework.web.bind.annotation.*;
 public class PagoController {
 
     private final PagoService pagoService;
+
+    @Value("${app.pago-en-linea.habilitado:true}")
+    private boolean pagoEnLineaHabilitado;
+
+    @GetMapping("/config")
+    public ResponseEntity<Map<String, Boolean>> getConfig() {
+        return ResponseEntity.ok(Map.of("pagoEnLineaHabilitado", pagoEnLineaHabilitado));
+    }
 
     @GetMapping("/paquetes")
     public ResponseEntity<List<PaqueteDTO>> getPaquetes() {
