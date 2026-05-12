@@ -730,14 +730,16 @@ async function doRegister() {
   const nombre   = document.getElementById('rName').value.trim();
   const apellido = document.getElementById('rLast').value.trim();
   const email    = document.getElementById('rEmail').value.trim();
-  const pass     = document.getElementById('rPass').value;
-  const telefono = document.getElementById('rPhone').value.trim();
-  const terms    = document.getElementById('rTerms').checked;
+  const pass        = document.getElementById('rPass').value;
+  const passConfirm = document.getElementById('rPassConfirm').value;
+  const telefono    = document.getElementById('rPhone').value.trim();
+  const terms       = document.getElementById('rTerms').checked;
 
-  if (!nombre || !apellido || !email || !pass) { showAlert('Completa todos los campos requeridos.'); return; }
-  if (!validEmail(email)) { showAlert('Correo electrónico inválido.'); return; }
-  if (pass.length < 8)    { showAlert('La contraseña debe tener al menos 8 caracteres.'); return; }
-  if (!terms)             { showAlert('Debes aceptar los términos para continuar.'); return; }
+  if (!nombre || !apellido || !email || !pass || !passConfirm) { showAlert('Completa todos los campos requeridos.'); return; }
+  if (!validEmail(email))    { showAlert('Correo electrónico inválido.'); return; }
+  if (pass.length < 8)       { showAlert('La contraseña debe tener al menos 8 caracteres.'); return; }
+  if (pass !== passConfirm)  { showAlert('Las contraseñas no coinciden.'); return; }
+  if (!terms)                { showAlert('Debes aceptar los términos para continuar.'); return; }
 
   const btn = document.querySelector('#fRegister .btn-submit');
   btn.disabled = true; btn.textContent = 'Creando cuenta...';
