@@ -241,29 +241,40 @@ function renderSeatMap(tipo, cupoTotal, ocupados) {
 }
 
 function renderCyclingMap(cupoTotal, ocupados) {
+  const ROW_SIZE = 8;
+
+  function bikeBtn(n) {
+    const ocu = ocupados.includes(n);
+    return `<button class="seat-bike ${ocu ? 'ocupado' : 'disponible'}"
+      ${ocu ? 'disabled' : `onclick="selectSeat(${n})"`} id="seat-${n}">
+      <svg class="seat-bike-svg" viewBox="0 0 24 24"><path d="M5 20.5A3.5 3.5 0 0 1 1.5 17 3.5 3.5 0 0 1 5 13.5 3.5 3.5 0 0 1 8.5 17 3.5 3.5 0 0 1 5 20.5M5 12A5 5 0 0 0 0 17a5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m9.8-2H19V8h-3.2L13 5.5c-.4-.5-1-.8-1.6-.8-.8 0-1.5.5-1.8 1.2L7.4 11c-.2.5-.4 1-.4 1.5A2.5 2.5 0 0 0 9.5 15H11v5h2v-7H9.5c-.1 0-.2 0-.2-.1l2-4.5L13 11h1.8M19 20.5A3.5 3.5 0 0 1 15.5 17 3.5 3.5 0 0 1 19 13.5 3.5 3.5 0 0 1 22.5 17 3.5 3.5 0 0 1 19 20.5m0-8.5a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-2-4.5a1.5 1.5 0 0 0 1.5 1.5A1.5 1.5 0 0 0 20 7.5 1.5 1.5 0 0 0 18.5 6 1.5 1.5 0 0 0 17 7.5z"/></svg>
+      <span class="seat-num">${n}</span>
+    </button>`;
+  }
+
+  // Fila del frente (bicis 1 a ROW_SIZE)
+  const frontEnd = Math.min(ROW_SIZE, cupoTotal);
   let html = `
     <div class="seat-map">
       <div class="seat-stage">
         <div class="seat-stage-label">Instructor · Pantalla</div>
-      </div>`;
-  let seat = 1, row = 0;
-  while (seat <= cupoTotal) {
-    const rowMax   = 4;
-    const rowSeats = [];
-    for (let i = 0; i < rowMax && seat <= cupoTotal; i++) rowSeats.push(seat++);
-    const stagger  = row % 2 === 1 ? ' staggered' : '';
-    html += `<div class="seat-row${stagger}">`;
-    rowSeats.forEach(n => {
-      const ocu = ocupados.includes(n);
-      html += `<button class="seat-bike ${ocu ? 'ocupado' : 'disponible'}"
-        ${ocu ? 'disabled' : `onclick="selectSeat(${n})"`} id="seat-${n}">
-        <svg class="seat-bike-svg" viewBox="0 0 24 24"><path d="M5 20.5A3.5 3.5 0 0 1 1.5 17 3.5 3.5 0 0 1 5 13.5 3.5 3.5 0 0 1 8.5 17 3.5 3.5 0 0 1 5 20.5M5 12A5 5 0 0 0 0 17a5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m9.8-2H19V8h-3.2L13 5.5c-.4-.5-1-.8-1.6-.8-.8 0-1.5.5-1.8 1.2L7.4 11c-.2.5-.4 1-.4 1.5A2.5 2.5 0 0 0 9.5 15H11v5h2v-7H9.5c-.1 0-.2 0-.2-.1l2-4.5L13 11h1.8M19 20.5A3.5 3.5 0 0 1 15.5 17 3.5 3.5 0 0 1 19 13.5 3.5 3.5 0 0 1 22.5 17 3.5 3.5 0 0 1 19 20.5m0-8.5a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-2-4.5a1.5 1.5 0 0 0 1.5 1.5A1.5 1.5 0 0 0 20 7.5 1.5 1.5 0 0 0 18.5 6 1.5 1.5 0 0 0 17 7.5z"/></svg>
-        <span class="seat-num">${n}</span>
-      </button>`;
-    });
-    html += '</div>';
-    row++;
+      </div>
+      <div class="seat-zone-label">Frente</div>
+      <div class="seat-row">`;
+  for (let n = 1; n <= frontEnd; n++) html += bikeBtn(n);
+  html += '</div>';
+
+  // Filas de atrás (bicis ROW_SIZE+1 en adelante), también de 8 en 8
+  if (cupoTotal > ROW_SIZE) {
+    html += '<div class="seat-zone-divider">Atrás</div>';
+    let seat = ROW_SIZE + 1;
+    while (seat <= cupoTotal) {
+      html += '<div class="seat-row">';
+      for (let i = 0; i < ROW_SIZE && seat <= cupoTotal; i++) html += bikeBtn(seat++);
+      html += '</div>';
+    }
   }
+
   return html + '</div>';
 }
 
@@ -355,7 +366,10 @@ async function abrirConfirmacion(cls, dayIdx, lugarNumero = null) {
     <div class="confirm-row">
       <span class="confirm-label">Tu lugar</span>
       <span class="confirm-value confirm-seat">${cls.tipo === 'SPINNING' ? '🚲' : '🧘'} #${lugarNumero}</span>
-    </div>` : ''}`;
+    </div>` : ''}
+    <div class="confirm-cancel-aviso">
+      Puedes cancelar hasta <strong>${isSpin ? _cancelacionCyclingHoras + ' horas' : _cancelacionPilatesHoras + ' horas'}</strong> antes del inicio.
+    </div>`;
 
   // Si es admin → mostrar selector buscable de cliente
   const adminWrap = document.getElementById('adminClienteWrap');
@@ -572,7 +586,7 @@ async function loadInstructores() {
       <div class="instructor-card">
         ${foto}
         <div class="instructor-name">${i.nombre} ${i.apellido}</div>
-        <div class="instructor-esp">${i.especialidad === 'SPINNING' ? 'Indoor Cycling' : 'Pilates · Reformer'}</div>
+        <div class="instructor-esp">${(i.especialidades||[]).map(e=>e==='SPINNING'?'Indoor Cycling':'Pilates · Reformer').join(' &amp; ')}</div>
         <p class="instructor-bio">${i.bio}</p>
       </div>`;
     }).join('');
@@ -874,15 +888,19 @@ async function openMisReservaciones() {
   const sub        = overlay.querySelector('.modal-sub');
   const body       = document.getElementById('reservBody');
 
+  const avisoEl = document.getElementById('reservCancelAviso');
   if (isAdmin()) {
     title.textContent = 'Todas las reservaciones';
     sub.textContent   = 'Gestión de reservaciones del estudio';
     document.getElementById('reservAdminSearch').style.display = 'block';
+    avisoEl.style.display = 'none';
     _resetReservSs();
   } else {
     document.getElementById('reservAdminSearch').style.display = 'none';
     title.textContent = 'Mis reservaciones';
     sub.textContent   = 'Próximas clases agendadas';
+    avisoEl.innerHTML = `Cycling: cancela hasta <strong>${_cancelacionCyclingHoras} horas</strong> antes · Pilates: cancela hasta <strong>${_cancelacionPilatesHoras} horas</strong> antes del inicio.`;
+    avisoEl.style.display = 'block';
   }
 
   overlay.classList.add('show');
@@ -908,7 +926,8 @@ async function openMisReservaciones() {
       body.innerHTML = data.map(r => {
         const pasado = r.fecha < hoyCliente || (r.fecha === hoyCliente && r.hora <= horaActualC);
         const claseDatetimeC = new Date(`${r.fecha}T${r.hora}`);
-        const puedeCancelar = !pasado && (claseDatetimeC - _ahoraC > 60 * 60 * 1000);
+        const horasLimite = r.tipoClase === 'SPINNING' ? _cancelacionCyclingHoras : _cancelacionPilatesHoras;
+        const puedeCancelar = !pasado && (claseDatetimeC - _ahoraC > horasLimite * 60 * 60 * 1000);
         return `
         <div class="resv-item${pasado ? ' pasado' : ''}" id="resv-${r.id}">
           <div class="resv-badge ${r.tipoClase === 'SPINNING' ? 'spin' : 'pilates'}">
@@ -1445,6 +1464,8 @@ const OPENPAY_PUBLIC_KEY  = 'pk_8ae07f8dbe4342d7a8297a7be69eb71e';
 const OPENPAY_SANDBOX     = true;
 
 let _pagoEnLineaHabilitado = true;
+let _cancelacionCyclingHoras = 3;
+let _cancelacionPilatesHoras = 24;
 
 let misCreditosCycling = 0;
 let misCreditosCyclingVencen = null;
@@ -1468,7 +1489,9 @@ if (typeof OpenPay !== 'undefined') initOpenpay();
 async function loadPagoConfig() {
   try {
     const data = await api('GET', '/pagos/config');
-    _pagoEnLineaHabilitado = data.pagoEnLineaHabilitado ?? true;
+    _pagoEnLineaHabilitado    = data.pagoEnLineaHabilitado    ?? true;
+    _cancelacionCyclingHoras  = data.cancelacionCyclingHoras  ?? 3;
+    _cancelacionPilatesHoras  = data.cancelacionPilatesHoras  ?? 24;
   } catch(_) {}
 }
 
@@ -1806,6 +1829,8 @@ async function openCobroEfectivo() {
   document.getElementById('efAlert').textContent  = '';
   document.getElementById('efSsDropdown').innerHTML = '';
   document.getElementById('efSsDropdown').classList.remove('open');
+  document.getElementById('efCancelAviso').innerHTML =
+    `Política de cancelación: Cycling hasta <strong>${_cancelacionCyclingHoras} horas</strong> antes · Pilates hasta <strong>${_cancelacionPilatesHoras} horas</strong> antes.`;
   _renderEfPaquetes();
   efSelectedClienteId = null;
 
@@ -2216,7 +2241,7 @@ function renderInstructoresAdmin() {
     const fotoEl = i.fotoUrl
       ? `<img src="${imgSrc(i.fotoUrl)}" class="inst-admin-avatar" alt="${i.nombre}">`
       : `<div class="inst-admin-avatar-ph">${i.nombre.charAt(0)}</div>`;
-    const espLabel = i.especialidad === 'SPINNING' ? 'Indoor Cycling' : 'Pilates';
+    const espLabel = (i.especialidades||[]).map(e=>e==='SPINNING'?'Indoor Cycling':'Pilates').join(' &amp; ');
     return `
       <div class="inst-admin-card${i.activo ? '' : ' inst-inactive'}">
         <div class="inst-admin-foto">${fotoEl}</div>
@@ -2240,7 +2265,8 @@ function openNuevoInstructor() {
   document.getElementById('instFormId').value = '';
   document.getElementById('instFormNombre').value = '';
   document.getElementById('instFormApellido').value = '';
-  document.getElementById('instFormEsp').value = 'SPINNING';
+  document.getElementById('instEspCycling').checked = false;
+  document.getElementById('instEspPilates').checked = false;
   document.getElementById('instFormBio').value = '';
   document.getElementById('instFormFoto').value = '';
   document.getElementById('instFotoImg').style.display = 'none';
@@ -2258,7 +2284,8 @@ function openEditarInstructor(id) {
   document.getElementById('instFormId').value = id;
   document.getElementById('instFormNombre').value = inst.nombre;
   document.getElementById('instFormApellido').value = inst.apellido;
-  document.getElementById('instFormEsp').value = inst.especialidad;
+  document.getElementById('instEspCycling').checked = (inst.especialidades||[]).includes('SPINNING');
+  document.getElementById('instEspPilates').checked = (inst.especialidades||[]).includes('PILATES');
   document.getElementById('instFormBio').value = inst.bio || '';
   document.getElementById('instFormFoto').value = '';
   document.getElementById('instFormAlert').textContent = '';
@@ -2307,13 +2334,20 @@ function guardarInstructor() {
 async function _execGuardarInstructor() {
   const nombre       = document.getElementById('instFormNombre').value.trim();
   const apellido     = document.getElementById('instFormApellido').value.trim();
-  const especialidad = document.getElementById('instFormEsp').value;
+  const especialidades = [];
+  if (document.getElementById('instEspCycling').checked) especialidades.push('SPINNING');
+  if (document.getElementById('instEspPilates').checked) especialidades.push('PILATES');
   const bio          = document.getElementById('instFormBio').value.trim();
   const fotoInput    = document.getElementById('instFormFoto');
 
+  if (!especialidades.length) {
+    document.getElementById('instFormAlert').textContent = 'Selecciona al menos una disciplina.';
+    return;
+  }
+
   try {
     let instructor;
-    const body = { nombre, apellido, especialidad, bio };
+    const body = { nombre, apellido, especialidades, bio };
     if (editingInstructorId) {
       instructor = await api('PUT', `/admin/instructores/${editingInstructorId}`, body);
     } else {

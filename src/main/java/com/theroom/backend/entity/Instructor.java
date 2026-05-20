@@ -4,6 +4,9 @@ import com.theroom.backend.enums.TipoClase;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "instructores")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -19,9 +22,12 @@ public class Instructor {
     @Column(nullable = false, length = 80)
     private String apellido;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "instructor_especialidades", joinColumns = @JoinColumn(name = "instructor_id"))
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TipoClase especialidad;
+    @Column(name = "especialidad")
+    @Builder.Default
+    private Set<TipoClase> especialidades = new HashSet<>();
 
     @Column(length = 300)
     private String bio;

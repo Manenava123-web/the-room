@@ -661,11 +661,17 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Especialidad</label>
-      <select id="instFormEsp" class="form-input">
-        <option value="SPINNING">Indoor Cycling</option>
-        <option value="PILATES">Pilates</option>
-      </select>
+      <label>Disciplinas</label>
+      <div class="inst-disc-checks">
+        <label class="inst-disc-check">
+          <input type="checkbox" id="instEspCycling" value="SPINNING"/>
+          <span>Indoor Cycling</span>
+        </label>
+        <label class="inst-disc-check">
+          <input type="checkbox" id="instEspPilates" value="PILATES"/>
+          <span>Pilates</span>
+        </label>
+      </div>
     </div>
     <div class="form-group">
       <label>Biografía</label>
@@ -798,6 +804,7 @@
     <div class="modal-logo">The <em>Room</em></div>
     <h2 class="modal-title">Mis reservaciones</h2>
     <p class="modal-sub">Próximas clases agendadas</p>
+    <div class="confirm-cancel-aviso" id="reservCancelAviso" style="display:none;margin-bottom:12px"></div>
     <div class="form-group" id="reservAdminSearch" style="display:none;margin-bottom:16px">
       <label>Filtrar por cliente</label>
       <div class="searchable-select" id="reservSsWrap">
@@ -905,6 +912,7 @@
       <div class="ef-paquetes" id="efPaquetes"></div>
     </div>
 
+    <div class="confirm-cancel-aviso" id="efCancelAviso" style="margin-top:14px"></div>
     <div class="modal-alert" id="efAlert"></div>
     <div class="confirm-actions" style="margin-top:16px">
       <button class="btn-outline-dark" onclick="closeEfectivo()">Cancelar</button>

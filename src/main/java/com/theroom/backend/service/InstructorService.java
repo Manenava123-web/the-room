@@ -50,7 +50,7 @@ public class InstructorService {
         Instructor instructor = Instructor.builder()
                 .nombre(request.getNombre())
                 .apellido(request.getApellido())
-                .especialidad(request.getEspecialidad())
+                .especialidades(request.getEspecialidades())
                 .bio(request.getBio())
                 .activo(true)
                 .build();
@@ -62,7 +62,7 @@ public class InstructorService {
         Instructor instructor = obtenerPorId(id);
         instructor.setNombre(request.getNombre());
         instructor.setApellido(request.getApellido());
-        instructor.setEspecialidad(request.getEspecialidad());
+        instructor.setEspecialidades(request.getEspecialidades());
         instructor.setBio(request.getBio());
         return instructorRepository.save(instructor);
     }
