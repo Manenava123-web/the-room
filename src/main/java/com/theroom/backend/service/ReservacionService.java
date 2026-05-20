@@ -10,6 +10,7 @@ import com.theroom.backend.entity.Reservacion;
 import com.theroom.backend.entity.Usuario;
 import com.theroom.backend.enums.DiaSemana;
 import com.theroom.backend.enums.EstadoReservacion;
+import com.theroom.backend.enums.TipoClase;
 import com.theroom.backend.enums.TipoDisciplina;
 import com.theroom.backend.enums.RolUsuario;
 import com.theroom.backend.exception.AppException;
@@ -43,6 +44,12 @@ public class ReservacionService {
 
     @Value("${app.pilates.limite-mensual:420}")
     private int limiteMensualPilates;
+
+    @Value("${app.cancelacion.cycling-horas:3}")
+    private int horasCancelarCycling;
+
+    @Value("${app.cancelacion.pilates-horas:24}")
+    private int horasCancelarPilates;
 
     @Transactional
     public ReservacionDTO crear(Long usuarioId, ReservacionRequest request) {
@@ -115,11 +122,19 @@ public class ReservacionService {
         if (fecha.isBefore(hoy)) {
             throw new AppException("No puedes cancelar una clase que ya pasó", HttpStatus.BAD_REQUEST);
         }
-        if (fecha.isEqual(hoy)) {
-            LocalTime ahora = LocalTime.now();
-            LocalTime inicioClase = LocalTime.parse(reservacion.getClase().getHora());
-            if (!ahora.isBefore(inicioClase.minusHours(1))) {
-                throw new AppException("Solo puedes cancelar hasta 1 hora antes del inicio de la clase", HttpStatus.BAD_REQUEST);
+        boolean esCycling = reservacion.getClase().getTipo() == TipoClase.SPINNING;
+        if (esCycling) {
+            if (fecha.isEqual(hoy)) {
+                LocalTime ahora = LocalTime.now();
+                LocalTime inicioClase = LocalTime.parse(reservacion.getClase().getHora());
+                if (!ahora.isBefore(inicioClase.minusHours(horasCancelarCycling))) {
+                    throw new AppException("Solo puedes cancelar tu clase de Cycling hasta " + horasCancelarCycling + " horas antes del inicio", HttpStatus.BAD_REQUEST);
+                }
+            }
+        } else {
+            LocalDateTime limiteCancel = LocalDateTime.of(fecha, LocalTime.parse(reservacion.getClase().getHora())).minusHours(horasCancelarPilates);
+            if (!LocalDateTime.now().isBefore(limiteCancel)) {
+                throw new AppException("Solo puedes cancelar tu clase de Pilates hasta " + horasCancelarPilates + " horas antes del inicio", HttpStatus.BAD_REQUEST);
             }
         }
 

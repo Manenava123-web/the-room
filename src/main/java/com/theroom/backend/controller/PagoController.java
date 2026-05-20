@@ -21,9 +21,19 @@ public class PagoController {
     @Value("${app.pago-en-linea.habilitado:true}")
     private boolean pagoEnLineaHabilitado;
 
+    @Value("${app.cancelacion.cycling-horas:3}")
+    private int horasCancelarCycling;
+
+    @Value("${app.cancelacion.pilates-horas:24}")
+    private int horasCancelarPilates;
+
     @GetMapping("/config")
-    public ResponseEntity<Map<String, Boolean>> getConfig() {
-        return ResponseEntity.ok(Map.of("pagoEnLineaHabilitado", pagoEnLineaHabilitado));
+    public ResponseEntity<Map<String, Object>> getConfig() {
+        return ResponseEntity.ok(Map.of(
+            "pagoEnLineaHabilitado", pagoEnLineaHabilitado,
+            "cancelacionCyclingHoras", horasCancelarCycling,
+            "cancelacionPilatesHoras", horasCancelarPilates
+        ));
     }
 
     @GetMapping("/paquetes")

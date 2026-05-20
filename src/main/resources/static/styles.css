@@ -642,6 +642,7 @@ input::placeholder{color:var(--stone-pale)}
 }
 .confirm-label{color:var(--stone);font-size:13px}
 .confirm-value{font-weight:500;color:var(--black)}
+.confirm-cancel-aviso{font-size:12px;color:var(--stone);margin-top:10px;padding-top:10px;border-top:1px solid var(--stone-light);text-align:center}
 .confirm-tipo{
   display:inline-block;
   padding:3px 10px;
@@ -901,7 +902,7 @@ input::placeholder{color:var(--stone-pale)}
 }
 
 /* ── Selección de lugar ────────────────────── */
-.modal-seat{max-width:min(560px,96vw);padding:36px 28px 32px}
+.modal-seat{max-width:min(780px,96vw);padding:36px 28px 32px}
 
 .seat-map{display:flex;flex-direction:column;align-items:center;gap:14px;margin:20px 0 8px}
 
@@ -916,12 +917,21 @@ input::placeholder{color:var(--stone-pale)}
   border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.06em;
 }
 
-.seat-row{display:flex;gap:12px;justify-content:center}
-.seat-row.staggered{margin-left:38px}
+.seat-row{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+
+.seat-zone-label{
+  text-align:center;font-size:11px;font-weight:600;letter-spacing:.07em;
+  color:var(--accent);text-transform:uppercase;margin:10px 0 6px;
+}
+.seat-zone-divider{
+  text-align:center;font-size:11px;font-weight:600;letter-spacing:.07em;
+  color:var(--stone-light);text-transform:uppercase;
+  border-top:1px dashed var(--stone-light);margin:14px 0 10px;padding-top:10px;
+}
 
 /* Bicicleta */
 .seat-bike{
-  width:62px;height:72px;border-radius:14px;
+  width:100%;aspect-ratio:5/6;border-radius:14px;
   border:2px solid;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:3px;
   cursor:pointer;transition:all .18s;background:none;padding:0;
@@ -1043,6 +1053,11 @@ input::placeholder{color:var(--stone-pale)}
   .modal-lg{padding:36px 16px 32px}
   .gpaq-form-grid{grid-template-columns:1fr 1fr}
   .gpaq-row-actions{flex-direction:column;align-items:flex-end}
+  .modal-seat{padding:32px 12px 28px}
+  .seat-row{gap:4px}
+  .seat-bike{border-radius:8px}
+  .seat-bike-svg{width:18px;height:18px}
+  .seat-num{font-size:9px}
   #clasesOverlay{padding:12px 6px}
   .aw-day{padding:10px 4px}
   .aw-day-num{font-size:16px}
@@ -1142,6 +1157,10 @@ input::placeholder{color:var(--stone-pale)}
 /* ═══════════════════════════════════════════
    INSTRUCTOR FORM — FOTO
 ═══════════════════════════════════════════ */
+.inst-disc-checks{display:flex;gap:20px;padding:6px 0}
+.inst-disc-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500}
+.inst-disc-check input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+
 .inst-foto-wrap{
   display:flex;
   flex-direction:column;

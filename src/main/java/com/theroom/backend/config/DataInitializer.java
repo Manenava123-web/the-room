@@ -95,7 +95,7 @@ public class DataInitializer {
             Instructor sharon = instructorRepo.save(Instructor.builder()
                     .nombre("Sharon Yumiko")
                     .apellido("García")
-                    .especialidad(TipoClase.PILATES)
+                    .especialidades(new java.util.HashSet<>(java.util.List.of(TipoClase.PILATES)))
                     .bio("Instructora certificada en Pilates Reformer. Especialista en rehabilitación y fortalecimiento de núcleo.")
                     .activo(true)
                     .build());
@@ -103,7 +103,7 @@ public class DataInitializer {
             Instructor carlos = instructorRepo.save(Instructor.builder()
                     .nombre("Carlos")
                     .apellido("Ramírez")
-                    .especialidad(TipoClase.SPINNING)
+                    .especialidades(new java.util.HashSet<>(java.util.List.of(TipoClase.SPINNING)))
                     .bio("Instructor de Indoor Cycling certificado. 6 años motivando a sus alumnos al ritmo de la música.")
                     .activo(true)
                     .build());
@@ -111,7 +111,7 @@ public class DataInitializer {
             Instructor andrea = instructorRepo.save(Instructor.builder()
                     .nombre("Andrea")
                     .apellido("Morales")
-                    .especialidad(TipoClase.SPINNING)
+                    .especialidades(new java.util.HashSet<>(java.util.List.of(TipoClase.SPINNING)))
                     .bio("Apasionada del fitness y el ciclismo indoor. Crea experiencias únicas de alto rendimiento.")
                     .activo(true)
                     .build());
