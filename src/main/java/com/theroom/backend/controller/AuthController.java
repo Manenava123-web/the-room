@@ -32,12 +32,12 @@ public class AuthController {
     @PostMapping("/solicitar-reset")
     public ResponseEntity<Void> solicitarReset(@Valid @RequestBody SolicitarResetRequest request) {
         authService.solicitarReset(request.getEmail());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.getToken(), request.getNuevaPassword());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }
