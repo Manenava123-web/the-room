@@ -27,6 +27,33 @@ function clearSession() {
 }
 
 /* ═══════════════════════════════════════════
+   INACTIVIDAD — cierre automático a los 20 min
+═══════════════════════════════════════════ */
+const INACTIVIDAD_MS = 20 * 60 * 1000;
+let _inactividadTimer = null;
+
+function _resetInactividadTimer() {
+  if (!getToken()) return;
+  clearTimeout(_inactividadTimer);
+  _inactividadTimer = setTimeout(_sesionExpiradaPorInactividad, INACTIVIDAD_MS);
+}
+
+function _sesionExpiradaPorInactividad() {
+  if (!getToken()) return;
+  clearSession();
+  currentUser = null;
+  document.getElementById('navActions').innerHTML = `
+    <button class="nav-btn-ghost" onclick="openAuth('login')">Iniciar sesión</button>
+    <button class="nav-btn-solid" onclick="openAuth('register')">Unirme</button>`;
+  if (typeof updateDrawerAuth === 'function') updateDrawerAuth(null);
+  showAlert('Tu sesión se cerró por inactividad. Por favor inicia sesión nuevamente.');
+}
+
+['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(ev =>
+  document.addEventListener(ev, _resetInactividadTimer, { passive: true })
+);
+
+/* ═══════════════════════════════════════════
    API HELPER
 ═══════════════════════════════════════════ */
 async function api(method, path, body) {
@@ -838,6 +865,7 @@ function updateDrawerAuth(u) {
 
 function onLoginSuccess(u) {
   currentUser = u;
+  _resetInactividadTimer();
   closeAuth();
   document.getElementById('navActions').innerHTML = buildNavUser(u);
   updateDrawerAuth(u);
@@ -862,6 +890,7 @@ function doLogout() {
 }
 
 function _execLogout() {
+  clearTimeout(_inactividadTimer);
   clearSession();
   currentUser = null;
   document.getElementById('navActions').innerHTML = `
@@ -2798,6 +2827,7 @@ async function loadCapacidad() {
   const saved = getSavedUser();
   if (saved && getToken()) {
     currentUser = saved;
+    _resetInactividadTimer();
     document.getElementById('navActions').innerHTML = buildNavUser(saved);
     updateDrawerAuth(saved);
   }
