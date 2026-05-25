@@ -11,6 +11,8 @@ import com.theroom.backend.repository.PasswordResetTokenRepository;
 import com.theroom.backend.repository.UsuarioRepository;
 import com.theroom.backend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -19,11 +21,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.InetAddress;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
@@ -33,37 +40,51 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final NotificacionService notificacionService;
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (usuarioRepository.existsByEmail(request.getEmail())) {
+        String email = request.getEmail().trim().toLowerCase();
+        String telefono = (request.getTelefono() != null && !request.getTelefono().isBlank())
+                ? request.getTelefono().trim() : null;
+
+        if (!dominioExiste(email)) {
+            throw new AppException(
+                "El dominio del correo no es válido. Revisa que no haya errores de escritura (ej. .con en lugar de .com).",
+                HttpStatus.BAD_REQUEST
+            );
+        }
+        if (usuarioRepository.existsByEmail(email)) {
             throw new AppException("El correo ya está registrado", HttpStatus.CONFLICT);
         }
+        try {
+            Usuario usuario = Usuario.builder()
+                    .nombre(request.getNombre().trim())
+                    .apellido(request.getApellido().trim())
+                    .email(email)
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .telefono(telefono)
+                    .rol(RolUsuario.CLIENTE)
+                    .activo(true)
+                    .build();
 
-        Usuario usuario = Usuario.builder()
-                .nombre(request.getNombre())
-                .apellido(request.getApellido())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .telefono(request.getTelefono())
-                .rol(RolUsuario.CLIENTE)
-                .activo(true)
-                .build();
-
-        usuarioRepository.save(usuario);
-        String token = jwtUtil.generateToken(usuario);
-
-        return buildResponse(usuario, token);
+            usuarioRepository.save(usuario);
+            String token = jwtUtil.generateToken(usuario);
+            return buildResponse(usuario, token);
+        } catch (DataIntegrityViolationException e) {
+            throw new AppException("El correo o teléfono ya está registrado", HttpStatus.CONFLICT);
+        }
     }
 
     public AuthResponse login(LoginRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(email, request.getPassword())
             );
         } catch (BadCredentialsException e) {
             throw new AppException("Credenciales incorrectas", HttpStatus.UNAUTHORIZED);
         }
 
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
+        Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException("Usuario no encontrado", HttpStatus.NOT_FOUND));
 
         if (!usuario.isActivo()) {
@@ -76,12 +97,13 @@ public class AuthService {
 
     @Transactional
     public void solicitarReset(String email) {
-        usuarioRepository.findByEmail(email).ifPresent(usuario -> {
-            resetTokenRepository.deleteByEmail(email);
+        String emailNorm = email.trim().toLowerCase();
+        usuarioRepository.findByEmail(emailNorm).ifPresent(usuario -> {
+            resetTokenRepository.deleteByEmail(emailNorm);
 
             PasswordResetToken reset = PasswordResetToken.builder()
                     .token(UUID.randomUUID().toString())
-                    .email(email)
+                    .email(emailNorm)
                     .expiresAt(LocalDateTime.now().plusHours(1))
                     .used(false)
                     .build();
@@ -122,5 +144,31 @@ public class AuthService {
                 .email(usuario.getEmail())
                 .rol(usuario.getRol())
                 .build();
+    }
+
+    /**
+     * Verifica via DNS que el dominio del correo exista y pueda recibir emails.
+     * Si el DNS no responde en 3 s se permite el registro (fail-open) para no
+     * bloquear usuarios legítimos por problemas de red en el servidor.
+     */
+    private boolean dominioExiste(String email) {
+        String dominio = email.substring(email.indexOf('@') + 1);
+        try {
+            CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    InetAddress.getByName(dominio);
+                    return true;
+                } catch (Exception e) {
+                    return false;
+                }
+            });
+            return future.get(3, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Timeout verificando dominio '{}' — se permite el registro", dominio);
+            return true;
+        } catch (Exception e) {
+            log.warn("Error verificando dominio '{}': {} — se permite el registro", dominio, e.getMessage());
+            return true;
+        }
     }
 }

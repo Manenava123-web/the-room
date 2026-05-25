@@ -741,15 +741,17 @@ async function doResetPassword() {
 
 /* ── Register ── */
 async function doRegister() {
-  const nombre   = document.getElementById('rName').value.trim();
-  const apellido = document.getElementById('rLast').value.trim();
-  const email    = document.getElementById('rEmail').value.trim();
+  const nombre      = document.getElementById('rName').value.trim();
+  const apellido    = document.getElementById('rLast').value.trim();
+  const email       = document.getElementById('rEmail').value.trim();
+  const emailConfirm= document.getElementById('rEmailConfirm').value.trim();
   const pass        = document.getElementById('rPass').value;
   const passConfirm = document.getElementById('rPassConfirm').value;
   const telefono    = document.getElementById('rPhone').value.trim();
   const terms       = document.getElementById('rTerms').checked;
 
-  if (!nombre || !apellido || !email || !pass || !passConfirm) { showAlert('Completa todos los campos requeridos.'); return; }
+  if (!nombre || !apellido || !email || !emailConfirm || !pass || !passConfirm) { showAlert('Completa todos los campos requeridos.'); return; }
+  if (email !== emailConfirm) { showAlert('Los correos electrónicos no coinciden.'); return; }
   if (!validEmail(email))    { showAlert('Correo electrónico inválido.'); return; }
   if (pass.length < 8)       { showAlert('La contraseña debe tener al menos 8 caracteres.'); return; }
   if (pass !== passConfirm)  { showAlert('Las contraseñas no coinciden.'); return; }
