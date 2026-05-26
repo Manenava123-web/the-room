@@ -1061,8 +1061,12 @@
       <button class="ec-pill" onclick="setHistorialPeriodo('semana', this)">Esta semana</button>
       <button class="ec-pill" onclick="setHistorialPeriodo('mes', this)">Este mes</button>
     </div>
+    <div class="rpt-search-row">
+      <input type="text" id="historialBuscar" class="form-input" placeholder="Buscar por nombre o email…" oninput="_filtrarHistorial()"/>
+    </div>
     <div class="rpt-resumen" id="historialResumen"></div>
     <div id="historialBody" class="rpt-table-wrap"></div>
+    <div class="rpt-footer" id="historialFooter"></div>
   </div>
 </div>
 

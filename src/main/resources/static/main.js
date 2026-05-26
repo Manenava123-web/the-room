@@ -2667,27 +2667,47 @@ function clientesOverlayClick(e) { if (e.target === document.getElementById('cli
 /* ═══════════════════════════════════════════
    HISTORIAL DE VENTAS (Admin)
 ═══════════════════════════════════════════ */
+const _HIST_PAGE_SIZE = 15;
 let _historialPeriodo = 'dia';
+let _historialData    = null;
+let _histBuscaQ       = '';
+let _histPageLinea    = 0;
+let _histPageEfectivo = 0;
 
 async function openHistorial() {
   document.getElementById('historialOverlay').classList.add('show');
   _historialPeriodo = 'dia';
+  _histBuscaQ = '';
+  document.getElementById('historialBuscar').value = '';
   document.querySelectorAll('#historialPills .ec-pill').forEach((b,i) => b.classList.toggle('active', i === 0));
   await _cargarHistorial();
 }
 
 function setHistorialPeriodo(periodo, btn) {
   _historialPeriodo = periodo;
+  _histBuscaQ = '';
+  document.getElementById('historialBuscar').value = '';
   document.querySelectorAll('#historialPills .ec-pill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _cargarHistorial();
 }
 
+function _filtrarHistorial() {
+  _histBuscaQ = document.getElementById('historialBuscar').value.trim().toLowerCase();
+  _histPageLinea = 0;
+  _histPageEfectivo = 0;
+  _renderHistorialTablas();
+}
+
 async function _cargarHistorial() {
   document.getElementById('historialBody').innerHTML = '<p style="text-align:center;padding:32px;color:var(--stone)">Cargando…</p>';
   document.getElementById('historialResumen').innerHTML = '';
+  document.getElementById('historialFooter').textContent = '';
   try {
     const data = await api('GET', `/admin/pagos/historial?periodo=${_historialPeriodo}`);
+    _historialData = data;
+    _histPageLinea = 0;
+    _histPageEfectivo = 0;
     _renderHistorial(data);
   } catch(e) {
     document.getElementById('historialBody').innerHTML = `<p style="text-align:center;padding:24px;color:var(--danger)">${e.message}</p>`;
@@ -2697,11 +2717,11 @@ async function _cargarHistorial() {
 function _renderHistorial(data) {
   const { historial, totalCobrado, totalClases, totalTransacciones } = data;
 
-  const enLinea   = historial.filter(p => p.metodo === 'TARJETA');
+  const enLinea    = historial.filter(p => p.metodo === 'TARJETA');
   const enEfectivo = historial.filter(p => p.metodo === 'EFECTIVO');
 
-  const sumaLinea    = enLinea.reduce((s, p) => s + p.monto, 0);
-  const sumaEfectivo = enEfectivo.reduce((s, p) => s + p.monto, 0);
+  const sumaLinea      = enLinea.reduce((s, p) => s + p.monto, 0);
+  const sumaEfectivo   = enEfectivo.reduce((s, p) => s + p.monto, 0);
   const clasesLinea    = enLinea.reduce((s, p) => s + p.clasesAgregadas, 0);
   const clasesEfectivo = enEfectivo.reduce((s, p) => s + p.clasesAgregadas, 0);
 
@@ -2733,9 +2753,32 @@ function _renderHistorial(data) {
       </div>
     </div>`;
 
-  const body = document.getElementById('historialBody');
+  _renderHistorialTablas();
+}
+
+function _renderHistorialTablas() {
+  if (!_historialData) return;
+  const { historial } = _historialData;
+  const q = _histBuscaQ;
+
+  const match = p => !q ||
+    p.usuarioNombre.toLowerCase().includes(q) ||
+    p.usuarioEmail.toLowerCase().includes(q);
+
+  const enLinea    = historial.filter(p => p.metodo === 'TARJETA'   && match(p));
+  const enEfectivo = historial.filter(p => p.metodo === 'EFECTIVO'  && match(p));
+
+  const body   = document.getElementById('historialBody');
+  const footer = document.getElementById('historialFooter');
+
   if (!historial.length) {
-    body.innerHTML = '<p style="text-align:center;padding:32px;color:var(--stone)">Sin ventas en este período.</p>';
+    body.innerHTML   = '<p style="text-align:center;padding:32px;color:var(--stone)">Sin ventas en este período.</p>';
+    footer.textContent = '';
+    return;
+  }
+  if (q && !enLinea.length && !enEfectivo.length) {
+    body.innerHTML   = '<p style="text-align:center;padding:32px;color:var(--stone)">Sin resultados para esa búsqueda.</p>';
+    footer.textContent = '';
     return;
   }
 
@@ -2743,8 +2786,19 @@ function _renderHistorial(data) {
     ? '<span class="rpt-tag rpt-tag-cyc">Cycling</span>'
     : '<span class="rpt-tag rpt-tag-pil">Pilates</span>';
 
-  const buildTable = (lista) => {
-    if (!lista.length) return '<p style="padding:12px 0;color:var(--stone-light);font-size:13px">Sin registros en este período.</p>';
+  const buildPaginatedTable = (lista, page, setPageFn) => {
+    if (!lista.length) return '<p style="padding:12px 0;color:var(--stone-light);font-size:13px">Sin registros.</p>';
+    const totalPages = Math.ceil(lista.length / _HIST_PAGE_SIZE);
+    const p = Math.min(page, totalPages - 1);
+    const slice = lista.slice(p * _HIST_PAGE_SIZE, (p + 1) * _HIST_PAGE_SIZE);
+
+    const paginacion = totalPages > 1 ? `
+      <div class="rpt-paginacion">
+        <button class="rpt-page-btn" onclick="${setPageFn}(${p - 1})" ${p === 0 ? 'disabled' : ''}>&#8249;</button>
+        <span>${p + 1} / ${totalPages}</span>
+        <button class="rpt-page-btn" onclick="${setPageFn}(${p + 1})" ${p >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>
+      </div>` : '';
+
     return `
       <table class="rpt-table">
         <thead><tr>
@@ -2755,34 +2809,50 @@ function _renderHistorial(data) {
           <th style="text-align:right">Monto</th>
         </tr></thead>
         <tbody>
-          ${lista.map(p => `
+          ${slice.map(r => `
             <tr>
-              <td class="rpt-mono" style="white-space:nowrap">${p.fechaPago}</td>
+              <td class="rpt-mono" style="white-space:nowrap">${r.fechaPago}</td>
               <td>
-                <div>${p.usuarioNombre}</div>
-                <div style="font-size:11px;color:var(--stone)">${p.usuarioEmail}</div>
+                <div>${r.usuarioNombre}</div>
+                <div style="font-size:11px;color:var(--stone)">${r.usuarioEmail}</div>
               </td>
-              <td>${p.paqueteNombre}<br><span style="font-size:11px;color:var(--stone)">${p.clasesAgregadas} clase${p.clasesAgregadas !== 1 ? 's' : ''}</span></td>
-              <td>${discTag(p.disciplina)}</td>
-              <td style="text-align:right;font-weight:600">$${Number(p.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
+              <td>${r.paqueteNombre}<br><span style="font-size:11px;color:var(--stone)">${r.clasesAgregadas} clase${r.clasesAgregadas !== 1 ? 's' : ''}</span></td>
+              <td>${discTag(r.disciplina)}</td>
+              <td style="text-align:right;font-weight:600">$${Number(r.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
             </tr>`).join('')}
         </tbody>
-      </table>`;
+      </table>
+      ${paginacion}`;
   };
 
   body.innerHTML = `
     <div class="rpt-seccion">
       <div class="rpt-seccion-header">
         <span class="rpt-tag rpt-tag-card" style="font-size:12px;padding:3px 10px">Tarjeta (en línea)</span>
+        ${enLinea.length ? `<span class="rpt-footer-count">${enLinea.length} registro${enLinea.length !== 1 ? 's' : ''}</span>` : ''}
       </div>
-      ${buildTable(enLinea)}
+      ${buildPaginatedTable(enLinea, _histPageLinea, '_setHistPageLinea')}
     </div>
     <div class="rpt-seccion">
       <div class="rpt-seccion-header">
         <span class="rpt-tag rpt-tag-cash" style="font-size:12px;padding:3px 10px">Efectivo</span>
+        ${enEfectivo.length ? `<span class="rpt-footer-count">${enEfectivo.length} registro${enEfectivo.length !== 1 ? 's' : ''}</span>` : ''}
       </div>
-      ${buildTable(enEfectivo)}
+      ${buildPaginatedTable(enEfectivo, _histPageEfectivo, '_setHistPageEfectivo')}
     </div>`;
+
+  const total = enLinea.length + enEfectivo.length;
+  footer.textContent = q ? `${total} resultado${total !== 1 ? 's' : ''} para "${_histBuscaQ}"` : '';
+}
+
+function _setHistPageLinea(page) {
+  _histPageLinea = page;
+  _renderHistorialTablas();
+}
+
+function _setHistPageEfectivo(page) {
+  _histPageEfectivo = page;
+  _renderHistorialTablas();
 }
 
 function closeHistorial() { document.getElementById('historialOverlay').classList.remove('show'); }

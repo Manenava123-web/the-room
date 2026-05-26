@@ -1668,10 +1668,35 @@ input::placeholder{color:var(--stone-pale)}
 .rpt-kpi-total{border-color:var(--accent-light)}
 .rpt-seccion{margin-top:20px}
 .rpt-seccion-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
   margin-bottom:10px;
   padding-bottom:8px;
   border-bottom:2px solid var(--border);
 }
+.rpt-footer-count{font-size:12px;color:var(--stone)}
+.rpt-paginacion{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:12px 0 4px;
+  font-size:13px;
+  color:var(--stone);
+}
+.rpt-page-btn{
+  background:none;
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:4px 12px;
+  font-size:15px;
+  cursor:pointer;
+  color:var(--charcoal);
+  transition:background .15s;
+}
+.rpt-page-btn:hover:not([disabled]){background:var(--accent-pale)}
+.rpt-page-btn[disabled]{opacity:.35;cursor:default}
 
 /* ═══════════════════════════════════════════
    MODALES LEGALES Y CONTACTO
