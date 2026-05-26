@@ -9,11 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import org.springframework.scheduling.annotation.Async;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,8 +42,11 @@ public class NotificacionService {
     private String frontendUrl;
 
     private static final String RESEND_URL = "https://api.resend.com/emails";
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
 
+    @Async
     public void enviarConfirmacion(Usuario usuario, Paquete paquete,
                                    String transaccionId, String metodo) {
         String precio = String.format("$%,.2f MXN", paquete.getPrecio().doubleValue());
@@ -60,6 +66,7 @@ public class NotificacionService {
         );
     }
 
+    @Async
     public void enviarResetPassword(Usuario usuario, String token) {
         String link = frontendUrl + "/the-room.html?token=" + token;
         String textFallback = "Hola " + usuario.getNombre() + ",\n\n"
@@ -94,6 +101,7 @@ public class NotificacionService {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(RESEND_URL))
+                    .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/json; charset=UTF-8")
                     .header("Authorization", "Bearer " + apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
