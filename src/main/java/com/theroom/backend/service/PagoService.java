@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Base64;
@@ -238,7 +239,7 @@ public class PagoService {
     }
 
     private void aplicarCreditos(Usuario usuario, Paquete paquete) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("America/Mexico_City"));
         LocalDate nuevaVigencia = sumarDiasHabiles(today, paquete.getVigenciaDias());
         if (paquete.getDisciplina() == TipoDisciplina.CYCLING) {
             usuario.setCreditosCycling(usuario.getCreditosCycling() + paquete.getNumClases());
@@ -291,7 +292,7 @@ public class PagoService {
 
     // ── Historial de pagos (admin) ─────────────────────────────
     public Map<String, Object> getHistorial(String periodo) {
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = LocalDateTime.now(ZoneId.of("America/Mexico_City"));
         LocalDateTime desde = switch (periodo) {
             case "semana" -> ahora.with(DayOfWeek.MONDAY).toLocalDate().atStartOfDay();
             case "mes"    -> ahora.withDayOfMonth(1).toLocalDate().atStartOfDay();
