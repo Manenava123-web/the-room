@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -105,7 +106,7 @@ public class ClaseService {
      * de la fecha concreta, no contra cupoTomado global de la entidad.
      */
     public List<ClaseDTO> obtenerPorSemana(int offset) {
-        LocalDate lunes = LocalDate.now()
+        LocalDate lunes = LocalDate.now(ZoneId.of("America/Mexico_City"))
                 .with(DayOfWeek.MONDAY)
                 .plusWeeks(offset);
 

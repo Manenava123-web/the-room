@@ -20,6 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -172,7 +173,7 @@ public class PaypalService {
     }
 
     private void aplicarCreditos(Usuario usuario, Paquete paquete) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("America/Mexico_City"));
         LocalDate nuevaVigencia = sumarDiasHabiles(today, paquete.getVigenciaDias());
         if (paquete.getDisciplina() == TipoDisciplina.CYCLING) {
             usuario.setCreditosCycling(usuario.getCreditosCycling() + paquete.getNumClases());

@@ -117,7 +117,8 @@ public class ReservacionService {
         }
 
         // Permitir cancelación hasta el inicio de la clase
-        LocalDate hoy = LocalDate.now();
+        ZoneId zona = ZoneId.of("America/Mexico_City");
+        LocalDate hoy = LocalDate.now(zona);
         LocalDate fecha = reservacion.getFecha();
         if (fecha.isBefore(hoy)) {
             throw new AppException("No puedes cancelar una clase que ya pasó", HttpStatus.BAD_REQUEST);
@@ -125,7 +126,7 @@ public class ReservacionService {
         boolean esCycling = reservacion.getClase().getTipo() == TipoClase.SPINNING;
         if (esCycling) {
             if (fecha.isEqual(hoy)) {
-                LocalTime ahora = LocalTime.now();
+                LocalTime ahora = LocalTime.now(zona);
                 LocalTime inicioClase = LocalTime.parse(reservacion.getClase().getHora());
                 if (!ahora.isBefore(inicioClase.minusHours(horasCancelarCycling))) {
                     throw new AppException("Solo puedes cancelar tu clase de Cycling hasta " + horasCancelarCycling + " horas antes del inicio", HttpStatus.BAD_REQUEST);
@@ -133,7 +134,7 @@ public class ReservacionService {
             }
         } else {
             LocalDateTime limiteCancel = LocalDateTime.of(fecha, LocalTime.parse(reservacion.getClase().getHora())).minusHours(horasCancelarPilates);
-            if (!LocalDateTime.now().isBefore(limiteCancel)) {
+            if (!LocalDateTime.now(zona).isBefore(limiteCancel)) {
                 throw new AppException("Solo puedes cancelar tu clase de Pilates hasta " + horasCancelarPilates + " horas antes del inicio", HttpStatus.BAD_REQUEST);
             }
         }
@@ -167,7 +168,7 @@ public class ReservacionService {
     }
 
     public List<ReservacionDTO> misProximas(Long usuarioId) {
-        return reservacionRepository.findProximasByUsuario(usuarioId, LocalDate.now())
+        return reservacionRepository.findProximasByUsuario(usuarioId, LocalDate.now(ZoneId.of("America/Mexico_City")))
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
@@ -240,7 +241,7 @@ public class ReservacionService {
             throw new AppException("Solo se pueden cancelar reservaciones confirmadas", HttpStatus.BAD_REQUEST);
         }
 
-        if (reservacion.getFecha().isBefore(LocalDate.now())) {
+        if (reservacion.getFecha().isBefore(LocalDate.now(ZoneId.of("America/Mexico_City")))) {
             throw new AppException("No se puede cancelar una reservación de una clase que ya pasó", HttpStatus.BAD_REQUEST);
         }
 

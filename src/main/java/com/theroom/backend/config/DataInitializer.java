@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Slf4j
@@ -176,7 +177,7 @@ public class DataInitializer {
             // ─────────────────────────────────────────
             // RESERVACIONES de muestra
             // ─────────────────────────────────────────
-            LocalDate hoy        = LocalDate.now();
+            LocalDate hoy        = LocalDate.now(ZoneId.of("America/Mexico_City"));
             LocalDate manana     = hoy.plusDays(1);
             LocalDate enDosDias  = hoy.plusDays(2);
 
