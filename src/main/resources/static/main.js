@@ -53,6 +53,26 @@ function _sesionExpiradaPorInactividad() {
   document.addEventListener(ev, _resetInactividadTimer, { passive: true })
 );
 
+// Llamado cuando el servidor rechaza la petición con 401 (token expirado/inválido)
+let _sesionExpirando = false;
+function _manejarSesionExpirada() {
+  if (_sesionExpirando) return;
+  _sesionExpirando = true;
+  clearTimeout(_inactividadTimer);
+  clearSession();
+  currentUser = null;
+  const nav = document.getElementById('navActions');
+  if (nav) nav.innerHTML = `
+    <button class="nav-btn-ghost" onclick="openAuth('login')">Iniciar sesión</button>
+    <button class="nav-btn-solid" onclick="openAuth('register')">Unirme</button>`;
+  if (typeof updateDrawerAuth === 'function') updateDrawerAuth(null);
+  document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+  if (typeof hideLoading === 'function') hideLoading();
+  // Delay para sobrescribir cualquier toast que lance el catch del llamador
+  setTimeout(() => showToast('Sesión expirada', 'Tu sesión ha expirado. Por favor inicia sesión.', 'error'), 80);
+  setTimeout(() => { openAuth('login'); _sesionExpirando = false; }, 420);
+}
+
 /* ═══════════════════════════════════════════
    API HELPER
 ═══════════════════════════════════════════ */
@@ -66,6 +86,11 @@ async function api(method, path, body) {
     body: body ? JSON.stringify(body) : undefined
   });
   if (res.status === 204) return null;
+  // Token expirado o revocado: solo cuando el usuario tenía sesión activa
+  if (res.status === 401 && getToken()) {
+    _manejarSesionExpirada();
+    throw new Error('Sesión expirada');
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'Error en el servidor');
   return data;
