@@ -6,8 +6,10 @@
 <title>THE ROOM — Indoor Cycling & Pilates Studio</title>
 <link rel="icon" type="image/jpeg" href="images/logo.jpeg"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="styles.css?v=19"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap"/></noscript>
+<link rel="stylesheet" href="styles.css?v=26"/>
 </head>
 <body>
 
@@ -1012,28 +1014,48 @@
   </div>
 </div>
 
-<!-- MODAL CLASES EN CURSO (Admin) -->
-<div class="overlay" id="enCursoOverlay" onclick="enCursoOverlayClick(event)">
-  <div class="modal modal-md">
-    <button class="modal-close" onclick="closeEnCurso()">✕</button>
+<!-- MODAL ESPACIOS POR CLASE (Admin) -->
+<div class="overlay" id="espaciosOverlay" onclick="espaciosOverlayClick(event)">
+  <div class="modal modal-lg">
+    <button class="modal-close" onclick="closeEspacios()">✕</button>
     <div class="modal-logo">The <em>Room</em></div>
-    <h2 class="modal-title">Lugares ocupados</h2>
-    <p class="modal-sub">Clase en curso · libera el lugar de clientes que no asistieron tras 10 min de tolerancia</p>
+    <h2 class="modal-title">Espacios por clase</h2>
 
-    <div class="ec-disc-pills">
-      <button class="ec-pill active" id="ecPillCycling" onclick="setEnCursoDisc('CYCLING')">Indoor Cycling</button>
-      <button class="ec-pill" id="ecPillPilates" onclick="setEnCursoDisc('PILATES')">Pilates</button>
+    <!-- Vista: agenda semanal -->
+    <div id="espCalView">
+      <p class="modal-sub">Selecciona una clase para ver su diagrama de ocupación</p>
+      <div class="ec-disc-pills">
+        <button class="ec-pill active" id="espPillCycling" onclick="setEspaciosDisc('CYCLING')">Indoor Cycling</button>
+        <button class="ec-pill" id="espPillPilates" onclick="setEspaciosDisc('PILATES')">Pilates</button>
+      </div>
+      <div class="week-nav" style="margin-bottom:16px">
+        <button class="week-nav-btn" id="espPrevBtn" onclick="setEspaciosOffset(-1)">←</button>
+        <span class="week-label" id="espWeekLabel">–</span>
+        <button class="week-nav-btn" onclick="setEspaciosOffset(1)">→</button>
+      </div>
+      <div id="espCalBody" class="esp-cal-wrap"></div>
+      <div class="ec-footer">
+        <span class="ec-timestamp" id="espTimestamp"></span>
+        <button class="btn-outline-dark" style="font-size:13px;padding:8px 16px" onclick="_recargarEspacios()">↻ Actualizar</button>
+      </div>
     </div>
 
-    <div id="ecBody" class="ec-body">
-      <p class="resv-empty">Cargando...</p>
-    </div>
-
-    <div class="ec-footer">
-      <span class="ec-timestamp" id="ecTimestamp"></span>
-      <button class="btn-outline-dark" style="font-size:13px;padding:8px 16px" onclick="_recargarEnCurso()">↻ Actualizar</button>
+    <!-- Vista: diagrama de una clase -->
+    <div id="espDetailView" style="display:none">
+      <button class="esp-back-btn" onclick="espVolverCalendario()">← Volver a agenda</button>
+      <div id="espDetailHeader" class="esp-detail-header"></div>
+      <div id="espDetailMap" class="esp-detail-map" onclick="_espOcultarTooltip()"></div>
+      <div id="espDetailSinLugar"></div>
     </div>
   </div>
+</div>
+
+<!-- Tooltip flotante de asiento ocupado (fuera del modal para no ser recortado) -->
+<div id="espSeatTooltip" class="esp-seat-tooltip" style="display:none" onclick="event.stopPropagation()">
+  <button class="esp-tooltip-close" onclick="_espOcultarTooltip()">✕</button>
+  <div id="espTooltipNombre" class="esp-tooltip-nombre"></div>
+  <div id="espTooltipEmail"  class="esp-tooltip-email"></div>
+  <div id="espTooltipLiberar"></div>
 </div>
 
 <!-- MODAL CLIENTES Y CRÉDITOS (Admin) -->
@@ -1213,8 +1235,8 @@
   <div class="toast-msg" id="toastMsg"></div>
 </div>
 
-<script src="https://js.openpay.mx/openpay.v1.min.js"></script>
-<script src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
-<script src="main.js?v=19"></script>
+<script defer src="https://js.openpay.mx/openpay.v1.min.js"></script>
+<script defer src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
+<script defer src="main.js?v=19"></script>
 </body>
 </html>

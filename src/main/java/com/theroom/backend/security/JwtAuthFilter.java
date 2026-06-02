@@ -54,11 +54,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json; charset=UTF-8");
             response.getWriter().write("{\"message\":\"La sesión ha expirado. Por favor inicia sesión nuevamente.\"}");
+            response.getWriter().flush();
             return;
         } catch (JwtException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json; charset=UTF-8");
             response.getWriter().write("{\"message\":\"Token inválido.\"}");
+            response.getWriter().flush();
             return;
         }
 

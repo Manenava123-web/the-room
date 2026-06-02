@@ -1,6 +1,7 @@
 package com.theroom.backend.controller;
 
 import com.theroom.backend.dto.*;
+import com.theroom.backend.dto.ClaseEspaciosAdminDTO;
 import com.theroom.backend.dto.ClaseEnCursoDTO;
 import com.theroom.backend.enums.TipoClase;
 import com.theroom.backend.entity.Instructor;
@@ -11,7 +12,6 @@ import com.theroom.backend.service.ClaseService;
 import com.theroom.backend.service.InstructorService;
 import com.theroom.backend.service.PagoService;
 import com.theroom.backend.service.ReservacionService;
-import org.springframework.http.HttpStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -67,6 +67,13 @@ public class AdminController {
     @GetMapping("/clases/en-curso")
     public ResponseEntity<List<ClaseEnCursoDTO>> clasesEnCurso() {
         return ResponseEntity.ok(reservacionService.getClasesEnCurso());
+    }
+
+    // GET /api/v1/admin/clases/espacios/semana?offset=0 — diagrama de espacios por semana
+    @GetMapping("/clases/espacios/semana")
+    public ResponseEntity<List<ClaseEspaciosAdminDTO>> espaciosPorSemana(
+            @RequestParam(defaultValue = "0") int offset) {
+        return ResponseEntity.ok(claseService.obtenerEspaciosPorSemana(offset));
     }
 
     // ── CLASES ────────────────────────────────────────────────

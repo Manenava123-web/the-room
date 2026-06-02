@@ -6,6 +6,23 @@ const SERVER_BASE = '';
 const imgSrc = path => path ? `${SERVER_BASE}${path}?ngrok-skip-browser-warning=1` : null;
 
 /* ═══════════════════════════════════════════
+   CACHÉ LOCAL (stale-while-revalidate, TTL 5 min)
+═══════════════════════════════════════════ */
+const _CACHE_TTL = 5 * 60 * 1000;
+function _cacheSet(key, data) {
+  try { localStorage.setItem('tr_c_' + key, JSON.stringify({ t: Date.now(), d: data })); } catch(_) {}
+}
+function _cacheGet(key) {
+  try {
+    const raw = localStorage.getItem('tr_c_' + key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (Date.now() - obj.t > _CACHE_TTL) { localStorage.removeItem('tr_c_' + key); return null; }
+    return obj.d;
+  } catch(_) { return null; }
+}
+
+/* ═══════════════════════════════════════════
    SESSION
 ═══════════════════════════════════════════ */
 const getToken    = () => localStorage.getItem('tr_token');
@@ -46,7 +63,9 @@ function _sesionExpiradaPorInactividad() {
     <button class="nav-btn-ghost" onclick="openAuth('login')">Iniciar sesión</button>
     <button class="nav-btn-solid" onclick="openAuth('register')">Unirme</button>`;
   if (typeof updateDrawerAuth === 'function') updateDrawerAuth(null);
-  showAlert('Tu sesión se cerró por inactividad. Por favor inicia sesión nuevamente.');
+  document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+  showToast('Sesión cerrada', 'Tu sesión se cerró por inactividad. Por favor inicia sesión.', 'error');
+  setTimeout(() => openAuth('login'), 420);
 }
 
 ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(ev =>
@@ -80,13 +99,26 @@ async function api(method, path, body) {
   const headers = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' };
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
+
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 10_000);
+
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method, headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal
+    });
+  } catch(err) {
+    clearTimeout(tid);
+    if (err.name === 'AbortError')
+      throw new Error('La conexión es lenta o inestable. Revisa tu red e intenta de nuevo.');
+    throw err;
+  }
+  clearTimeout(tid);
+
   if (res.status === 204) return null;
-  // Token expirado o revocado: solo cuando el usuario tenía sesión activa
   if (res.status === 401 && getToken()) {
     _manejarSesionExpirada();
     throw new Error('Sesión expirada');
@@ -850,7 +882,7 @@ function buildNavUser(u) {
           <a class="udrop-link" onclick="openGestionPaquetes()">Gestionar paquetes</a>
           <a class="udrop-link" onclick="openCobroEfectivo()">Cobrar en efectivo</a>
           <a class="udrop-link" onclick="openEquipo()">Gestionar equipo</a>
-          <a class="udrop-link" onclick="openEnCurso()">Clases en curso</a>
+          <a class="udrop-link" onclick="openEspacios()">Espacios por clase</a>
           <a class="udrop-link" onclick="openClientes()">Clientes y créditos</a>
           <a class="udrop-link" onclick="openHistorial()">Historial de ventas</a>` : ''}
         <a class="udrop-link danger" onclick="doLogout()">Cerrar sesión</a>
@@ -868,7 +900,7 @@ function buildDrawerAuth(u) {
     <a class="drawer-user-link" onclick="closeDrawer();openGestionPaquetes()">Gestionar paquetes</a>
     <a class="drawer-user-link" onclick="closeDrawer();openCobroEfectivo()">Cobrar en efectivo</a>
     <a class="drawer-user-link" onclick="closeDrawer();openEquipo()">Gestionar equipo</a>
-    <a class="drawer-user-link" onclick="closeDrawer();openEnCurso()">Clases en curso</a>
+    <a class="drawer-user-link" onclick="closeDrawer();openEspacios()">Espacios por clase</a>
     <a class="drawer-user-link" onclick="closeDrawer();openClientes()">Clientes y créditos</a>
     <a class="drawer-user-link" onclick="closeDrawer();openHistorial()">Historial de ventas</a>` : '';
   return `
@@ -980,7 +1012,8 @@ async function openMisReservaciones() {
       const hoyCliente = `${_ahoraC.getFullYear()}-${String(_ahoraC.getMonth()+1).padStart(2,'0')}-${String(_ahoraC.getDate()).padStart(2,'0')}`;
       const horaActualC = `${String(_ahoraC.getHours()).padStart(2,'0')}:${String(_ahoraC.getMinutes()).padStart(2,'0')}`;
       body.innerHTML = data.map(r => {
-        const pasado = r.fecha < hoyCliente || (r.fecha === hoyCliente && r.hora <= horaActualC);
+        const horaRNorm = r.hora.padStart(5, '0');
+        const pasado = r.fecha < hoyCliente || (r.fecha === hoyCliente && horaRNorm <= horaActualC);
         const claseDatetimeC = new Date(`${r.fecha}T${r.hora}`);
         const horasLimite = r.tipoClase === 'SPINNING' ? _cancelacionCyclingHoras : _cancelacionPilatesHoras;
         const puedeCancelar = !pasado && (claseDatetimeC - _ahoraC > horasLimite * 60 * 60 * 1000);
@@ -1116,7 +1149,8 @@ function _renderReservacionesAdmin(data, clienteNombre) {
   const hoy = `${_ahora.getFullYear()}-${String(_ahora.getMonth()+1).padStart(2,'0')}-${String(_ahora.getDate()).padStart(2,'0')}`;
   const horaActual = `${String(_ahora.getHours()).padStart(2,'0')}:${String(_ahora.getMinutes()).padStart(2,'0')}`;
   body.innerHTML = data.map(r => {
-    const pasado = r.fecha < hoy || (r.fecha === hoy && r.hora <= horaActual);
+    const horaRNorm = r.hora.padStart(5, '0');
+    const pasado = r.fecha < hoy || (r.fecha === hoy && horaRNorm <= horaActual);
     const estadoClass = pasado && r.estado === 'CONFIRMADA' ? 'pasado' : r.estado.toLowerCase();
     const estadoLabel = pasado && r.estado === 'CONFIRMADA' ? 'PASADO' : r.estado.replace('_', ' ');
     const puedeCancelar = r.estado === 'CONFIRMADA' && !pasado;
@@ -1559,15 +1593,23 @@ function closePagoDeshabilitado() {
   document.getElementById('pagoDeshabilitadoOverlay').classList.remove('show');
 }
 
+function _aplicarCreditos(data) {
+  misCreditosCycling       = data.creditosCycling ?? 0;
+  misCreditosCyclingVencen = data.creditosCyclingVencen ?? null;
+  misCreditosPilates       = data.creditosPilates ?? 0;
+  misCreditosPilatesVencen = data.creditosPilatesVencen ?? null;
+  _actualizarCreditosBadge();
+}
+
 async function loadCreditos() {
   if (!getToken() || !currentUser || currentUser.rol === 'ADMIN') return;
+  // Muestra créditos cacheados al instante (evita badge vacío en red lenta)
+  const cached = _cacheGet('cred_' + currentUser.id);
+  if (cached) _aplicarCreditos(cached);
   try {
     const data = await api('GET', '/pagos/mis-creditos');
-    misCreditosCycling       = data.creditosCycling ?? 0;
-    misCreditosCyclingVencen = data.creditosCyclingVencen ?? null;
-    misCreditosPilates       = data.creditosPilates ?? 0;
-    misCreditosPilatesVencen = data.creditosPilatesVencen ?? null;
-    _actualizarCreditosBadge();
+    _cacheSet('cred_' + currentUser.id, data);
+    _aplicarCreditos(data);
   } catch(_) {}
 }
 
@@ -1577,20 +1619,40 @@ function _fmtFecha(iso) {
   return `${d}/${m}/${y}`;
 }
 
+function _diasHastaVencer(iso) {
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((new Date(iso + 'T00:00:00') - hoy) / 86_400_000);
+}
+
+function _labelVencimiento(iso, tieneCreditos) {
+  if (!iso || !tieneCreditos) return { texto: '', cls: '' };
+  const dias = _diasHastaVencer(iso);
+  if (dias < 0)   return { texto: 'Expirado',              cls: 'cred-exp'  };
+  if (dias === 0) return { texto: 'Vence hoy',             cls: 'cred-warn' };
+  if (dias === 1) return { texto: 'Vence mañana',          cls: 'cred-warn' };
+  if (dias <= 7)  return { texto: `Vence en ${dias} días`, cls: 'cred-warn' };
+  const [, m, d] = iso.split('-');
+  const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return { texto: `Vence ${parseInt(d)} ${M[parseInt(m) - 1]}`, cls: '' };
+}
+
 function _actualizarCreditosBadge() {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const cycExp = misCreditosCycling > 0 && misCreditosCyclingVencen && misCreditosCyclingVencen < hoy;
-  const pilExp = misCreditosPilates > 0 && misCreditosPilatesVencen && misCreditosPilatesVencen < hoy;
-  const cycSuffix = cycExp
-    ? ' <span class="creditos-vence creditos-exp">· Expirado</span>'
-    : (misCreditosCycling > 0 && misCreditosCyclingVencen ? ` <span class="creditos-vence">· ${_fmtFecha(misCreditosCyclingVencen)}</span>` : '');
-  const pilSuffix = pilExp
-    ? ' <span class="creditos-vence creditos-exp">· Expirado</span>'
-    : (misCreditosPilates > 0 && misCreditosPilatesVencen ? ` <span class="creditos-vence">· ${_fmtFecha(misCreditosPilatesVencen)}</span>` : '');
-  const html =
-    `<span>Cycling: <strong>${misCreditosCycling}</strong>${cycSuffix}</span>` +
-    `<span class="udrop-creditos-sep">·</span>` +
-    `<span>Pilates: <strong>${misCreditosPilates}</strong>${pilSuffix}</span>`;
+  const cycV = _labelVencimiento(misCreditosCyclingVencen, misCreditosCycling > 0);
+  const pilV = _labelVencimiento(misCreditosPilatesVencen, misCreditosPilates > 0);
+
+  function fila(disc, n, v) {
+    const cnt = n === 1 ? '1 clase' : `${n} clases`;
+    const tag = v.texto ? `<span class="cred-vence ${v.cls}">${v.texto}</span>` : '';
+    return `<div class="cred-row">
+      <span class="cred-disc">${disc}</span>
+      <span class="cred-count">${cnt}</span>
+      ${tag}
+    </div>`;
+  }
+
+  const html = fila('Indoor Cycling', misCreditosCycling, cycV)
+             + fila('Pilates',        misCreditosPilates, pilV);
+
   const badge = document.getElementById('creditosBadge');
   if (badge) badge.innerHTML = html;
   const badgeDrawer = document.getElementById('creditosBadgeDrawer');
@@ -1599,18 +1661,25 @@ function _actualizarCreditosBadge() {
 
 let _PAQUETES_INFO = {};
 
+function _aplicarPaquetes(lista) {
+  _PAQUETES_INFO = {};
+  const cycling = [], pilates = [];
+  lista.forEach(p => {
+    _PAQUETES_INFO[p.id] = { nombre: p.nombre, precio: p.precio, clases: p.numClases, disciplina: p.disciplina, esMensual: p.esMensual, vigenciaDias: p.vigenciaDias };
+    if (p.disciplina === 'CYCLING') cycling.push(p);
+    else pilates.push(p);
+  });
+  _renderPkgList('pkgListCycling', cycling);
+  _renderPkgList('pkgListPilates', pilates);
+}
+
 async function loadPaquetes() {
+  const cached = _cacheGet('paquetes');
+  if (cached) _aplicarPaquetes(cached);
   try {
     const lista = await api('GET', '/pagos/paquetes');
-    _PAQUETES_INFO = {};
-    const cycling = [], pilates = [];
-    lista.forEach(p => {
-      _PAQUETES_INFO[p.id] = { nombre: p.nombre, precio: p.precio, clases: p.numClases, disciplina: p.disciplina, esMensual: p.esMensual, vigenciaDias: p.vigenciaDias };
-      if (p.disciplina === 'CYCLING') cycling.push(p);
-      else pilates.push(p);
-    });
-    _renderPkgList('pkgListCycling', cycling);
-    _renderPkgList('pkgListPilates', pilates);
+    _cacheSet('paquetes', lista);
+    _aplicarPaquetes(lista);
   } catch(_) {}
 }
 
@@ -2504,116 +2573,6 @@ function hideLoading() {
 }
 
 /* ═══════════════════════════════════════════
-   LUGARES EN CURSO (Admin)
-═══════════════════════════════════════════ */
-let enCursoData = [];
-let enCursoDisc = 'CYCLING';
-let _enCursoTimer = null;
-
-async function openEnCurso() {
-  document.getElementById('udrop')?.classList.remove('open');
-  enCursoDisc = 'CYCLING';
-  document.getElementById('ecPillCycling').classList.add('active');
-  document.getElementById('ecPillPilates').classList.remove('active');
-  document.getElementById('enCursoOverlay').classList.add('show');
-  await _recargarEnCurso();
-  _enCursoTimer = setInterval(_recargarEnCurso, 60_000);
-}
-
-async function _recargarEnCurso() {
-  document.getElementById('ecBody').innerHTML = '<p class="resv-empty">Cargando...</p>';
-  try {
-    enCursoData = await api('GET', '/admin/clases/en-curso');
-    document.getElementById('ecTimestamp').textContent =
-      `Actualizado: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
-    _renderEnCurso();
-  } catch(e) {
-    document.getElementById('ecBody').innerHTML = `<p class="resv-empty">${e.message}</p>`;
-  }
-}
-
-function setEnCursoDisc(disc) {
-  enCursoDisc = disc;
-  document.getElementById('ecPillCycling').classList.toggle('active', disc === 'CYCLING');
-  document.getElementById('ecPillPilates').classList.toggle('active', disc === 'PILATES');
-  _renderEnCurso();
-}
-
-function _renderEnCurso() {
-  const body   = document.getElementById('ecBody');
-  const clases = enCursoData.filter(c => c.disciplina === enCursoDisc);
-  const label  = enCursoDisc === 'CYCLING' ? 'Indoor Cycling' : 'Pilates';
-
-  if (!clases.length) {
-    body.innerHTML = `<p class="resv-empty">No hay clases de ${label} en curso en este momento.</p>`;
-    return;
-  }
-
-  body.innerHTML = clases.map(c => {
-    const libres   = c.cupoTotal - c.cupoTomado;
-    const instStr  = c.instructor ? ` · <span style="font-weight:400;color:var(--stone)">${c.instructor}</span>` : '';
-    const cupoStr  = `${c.cupoTomado}/${c.cupoTotal} ocupados · ${libres} libre${libres !== 1 ? 's' : ''}`;
-
-    const filas = c.reservaciones.length === 0
-      ? '<p class="resv-empty" style="font-size:13px;margin:14px 0 6px">Sin reservaciones confirmadas.</p>'
-      : c.reservaciones.map(r => {
-          const lugar = r.lugarNumero ?? '—';
-          return `
-            <div class="ec-item" id="ec-r-${r.reservacionId}">
-              <div class="ec-lugar">${lugar}</div>
-              <div class="ec-info">
-                <div class="ec-nombre">${r.nombre}</div>
-                <div class="ec-email">${r.email}</div>
-              </div>
-              <button class="ec-liberar-btn" onclick="liberarLugar(${r.reservacionId},'${r.nombre.replace(/'/g,"\\'")}')">Liberar</button>
-            </div>`;
-        }).join('');
-
-    return `
-      <div class="ec-clase-card">
-        <div class="ec-clase-header">
-          <span class="ec-clase-hora">Clase ${c.hora.replace(/^0/, '')}${instStr}</span>
-          <span class="ec-cupo-badge">${cupoStr}</span>
-        </div>
-        <div class="ec-lista">${filas}</div>
-      </div>`;
-  }).join('');
-}
-
-function liberarLugar(reservacionId, nombre) {
-  showConfirm(
-    'Liberar lugar',
-    `¿Confirmar que ${nombre} no asistió? El lugar queda disponible y el crédito no se devuelve.`,
-    'Sí, liberar lugar',
-    'btn-danger',
-    () => doLiberarLugar(reservacionId)
-  );
-}
-
-async function doLiberarLugar(reservacionId) {
-  try {
-    await api('PATCH', `/admin/reservaciones/${reservacionId}/no-asistio`);
-    enCursoData = enCursoData.map(c => ({
-      ...c,
-      cupoTomado: c.reservaciones.some(r => r.reservacionId === reservacionId)
-        ? c.cupoTomado - 1 : c.cupoTomado,
-      reservaciones: c.reservaciones.filter(r => r.reservacionId !== reservacionId)
-    }));
-    _renderEnCurso();
-    showToast('Lugar liberado', 'El lugar fue liberado. El crédito no fue devuelto al cliente.');
-  } catch(e) {
-    showToast('Error', e.message);
-  }
-}
-
-function closeEnCurso() {
-  document.getElementById('enCursoOverlay').classList.remove('show');
-  clearInterval(_enCursoTimer);
-  _enCursoTimer = null;
-}
-function enCursoOverlayClick(e) { if (e.target === document.getElementById('enCursoOverlay')) closeEnCurso(); }
-
-/* ═══════════════════════════════════════════
    CLIENTES Y CRÉDITOS (Admin)
 ═══════════════════════════════════════════ */
 let _clientesData = [];
@@ -2871,12 +2830,12 @@ function _renderHistorialTablas() {
 }
 
 function _setHistPageLinea(page) {
-  _histPageLinea = page;
+  _histPageLinea = Math.max(0, page);
   _renderHistorialTablas();
 }
 
 function _setHistPageEfectivo(page) {
-  _histPageEfectivo = page;
+  _histPageEfectivo = Math.max(0, page);
   _renderHistorialTablas();
 }
 
@@ -2896,10 +2855,358 @@ function openContacto() { document.getElementById('contactoOverlay').classList.a
 function closeContacto() { document.getElementById('contactoOverlay').classList.remove('show'); }
 
 /* ═══════════════════════════════════════════
+   ESPACIOS POR CLASE (Admin)
+═══════════════════════════════════════════ */
+let _espaciosData      = [];
+let _espaciosTimer     = null;
+let espaciosDisc       = 'CYCLING';
+let espaciosOffset     = 0;
+const _espClaseMap     = {};   // clave `${claseId}_${fecha}` → datos de clase
+let _espClaseEnCurso   = false;
+let _espCurrentDetailKey = null;
+
+async function openEspacios() {
+  document.getElementById('udrop')?.classList.remove('open');
+  espaciosOffset = 0;
+  espaciosDisc   = 'CYCLING';
+  document.getElementById('espPillCycling').classList.add('active');
+  document.getElementById('espPillPilates').classList.remove('active');
+  espVolverCalendario();
+  document.getElementById('espaciosOverlay').classList.add('show');
+  await _recargarEspacios();
+  _espaciosTimer = setInterval(_recargarEspacios, 60_000);
+}
+
+async function _recargarEspacios() {
+  document.getElementById('espCalBody').innerHTML =
+    '<div class="agenda-loading">Cargando clases...</div>';
+  _renderEspWeekLabel();
+  try {
+    _espaciosData = await api('GET', `/admin/clases/espacios/semana?offset=${espaciosOffset}`);
+    document.getElementById('espTimestamp').textContent =
+      `Actualizado: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
+    _renderEspacios();
+  } catch(e) {
+    document.getElementById('espCalBody').innerHTML =
+      `<p class="resv-empty">${e.message}</p>`;
+  }
+}
+
+function _renderEspWeekLabel() {
+  const monday = getMonday(espaciosOffset);
+  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+  const fmtD   = d => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+  document.getElementById('espWeekLabel').textContent =
+    `${fmtD(monday)} — ${fmtD(friday)} ${friday.getFullYear()}`;
+  document.getElementById('espPrevBtn').disabled = espaciosOffset <= 0;
+}
+
+function setEspaciosDisc(disc) {
+  espaciosDisc = disc;
+  document.getElementById('espPillCycling').classList.toggle('active', disc === 'CYCLING');
+  document.getElementById('espPillPilates').classList.toggle('active', disc === 'PILATES');
+  _renderEspacios();
+}
+
+async function setEspaciosOffset(delta) {
+  espaciosOffset += delta;
+  await _recargarEspacios();
+}
+
+// ── Clase ya terminó: hoy y hora inicio + 75 min ≤ ahora ────
+function _espClaseYaTermino(hora) {
+  const [h, m] = hora.split(':').map(Number);
+  const now = new Date();
+  return (now.getHours() * 60 + now.getMinutes()) >= (h * 60 + m + 75);
+}
+
+// ── Renderiza el calendario de agenda ────────────────────────
+function _renderEspacios() {
+  const body      = document.getElementById('espCalBody');
+  const tipoBuscar = espaciosDisc === 'CYCLING' ? 'SPINNING' : 'PILATES';
+  const clases    = _espaciosData.filter(c => c.tipo === tipoBuscar && c.diaSemana in DIA_LABEL);
+
+  if (!clases.length) {
+    const label = espaciosDisc === 'CYCLING' ? 'Indoor Cycling' : 'Pilates';
+    body.innerHTML = `<p class="resv-empty">No hay clases de ${label} esta semana.</p>`;
+    return;
+  }
+
+  const horas    = [...new Set(clases.map(c => c.hora))].sort();
+  const monday   = getMonday(espaciosOffset);
+  const todayMs  = new Date().setHours(0, 0, 0, 0);
+  const colDates = DIAS_ORDEN.map((_, i) => {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const dMs = d.getTime();
+    return { num: d.getDate(), isPast: dMs < todayMs, isToday: dMs === todayMs };
+  });
+
+  let html = '<div class="admin-cal-grid">';
+  html += '<div class="aw-corner"></div>';
+  DIAS_ORDEN.forEach((dia, i) => {
+    html += `<div class="aw-day${colDates[i].isPast ? ' day-past' : ''}">
+      <span class="aw-day-name">${DIA_LABEL[dia]}</span>
+      <span class="aw-day-num">${colDates[i].num}</span>
+    </div>`;
+  });
+
+  horas.forEach(hora => {
+    html += `<div class="aw-time">${hora.replace(/^0/, '')}</div>`;
+    DIAS_ORDEN.forEach((dia, i) => {
+      const cls = clases.find(c => c.hora === hora && c.diaSemana === dia);
+      if (cls) {
+        const key = `${cls.claseId}_${cls.fecha}`;
+        _espClaseMap[key] = cls;
+        const terminada = colDates[i].isPast || (colDates[i].isToday && _espClaseYaTermino(hora));
+        html += `<div class="aw-cell${colDates[i].isPast ? ' cell-past' : ''}">${_renderEspPill(cls, key, terminada)}</div>`;
+      } else {
+        html += `<div class="aw-cell${colDates[i].isPast ? ' cell-past' : ''}"></div>`;
+      }
+    });
+  });
+
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+function _renderEspPill(c, key, isPast) {
+  const isSpin = c.tipo === 'SPINNING';
+  const tipo   = isSpin ? 'spin' : 'pilates';
+  const libres = c.lugaresDisponibles;
+  const cupoStr = c.llena ? 'LLENO' : `${libres} libre${libres !== 1 ? 's' : ''}`;
+  const cupoClass = c.llena ? 'esp-cupo-llena' : libres <= 2 ? 'esp-cupo-casi' : 'esp-cupo-ok';
+  const instStr = c.instructor || 'Sin asignar';
+
+  if (isPast) {
+    return `<div class="admin-pill ${tipo} inactiva esp-pill esp-pill-past">
+      <span class="ap-nombre">${isSpin ? 'Indoor Cycling' : 'Pilates'}</span>
+      <span class="ap-inst">${instStr}</span>
+      <span class="esp-cupo-line" style="opacity:.5">${c.cupoTomado}/${c.cupoTotal}</span>
+    </div>`;
+  }
+
+  return `<div class="admin-pill ${tipo} esp-pill" onclick="_espAbrirDetalle('${key}')">
+    <span class="ap-nombre">${isSpin ? 'Indoor Cycling' : 'Pilates'}</span>
+    <span class="ap-inst">${instStr}</span>
+    <span class="esp-cupo-line ${cupoClass}">${c.cupoTomado}/${c.cupoTotal} · ${cupoStr}</span>
+    <span class="esp-ver-label">Ver espacios →</span>
+  </div>`;
+}
+
+// ── Detecta si una clase está en curso ahora mismo (client-side) ─
+function _espEstaEnCurso(fecha, hora) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const hoy = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  if (fecha !== hoy) return false;
+  const [h, m] = hora.split(':').map(Number);
+  const minInicio = h * 60 + m;
+  const minAhora  = now.getHours() * 60 + now.getMinutes();
+  return minAhora >= minInicio && minAhora < minInicio + 75;
+}
+
+// ── Abre el diagrama de una clase ────────────────────────────
+function _espAbrirDetalle(key) {
+  const c = _espClaseMap[key];
+  if (!c) return;
+  _espOcultarTooltip();
+  _espCurrentDetailKey = key;
+  _espClaseEnCurso     = _espEstaEnCurso(c.fecha, c.hora);
+
+  const [y, m, d] = c.fecha.split('-').map(Number);
+  const fechaFmt = new Date(y, m - 1, d)
+    .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  const titulo = fechaFmt.charAt(0).toUpperCase() + fechaFmt.slice(1);
+  const libres = c.lugaresDisponibles;
+  const badgeCls = c.llena ? 'esp-badge-llena' : libres <= 2 ? 'esp-badge-casi' : 'esp-badge-ok';
+  const cupoStr = `${c.cupoTomado}/${c.cupoTotal} ocupados · ${libres} libre${libres !== 1 ? 's' : ''}`;
+  const enCursoTag  = _espClaseEnCurso ? '<span class="esp-en-curso-badge">EN CURSO</span>' : '';
+  const liberarHint = '<span class="esp-legend-item esp-legend-liberar"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · click para ver / liberar</span>';
+
+  document.getElementById('espDetailHeader').innerHTML = `
+    <div class="esp-detail-info">
+      <div class="esp-detail-tipo">${c.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'}${enCursoTag}</div>
+      <div class="esp-detail-meta">${titulo} · ${c.hora.replace(/^0/, '')} h${c.instructor ? ` · ${c.instructor}` : ''}</div>
+      <div class="esp-detail-cupo"><span class="${badgeCls}">${cupoStr}</span></div>
+    </div>
+    <div class="esp-detail-legend">
+      ${liberarHint}
+      <span class="esp-legend-item"><span class="esp-legend-dot esp-ld-libre"></span>Libre</span>
+    </div>`;
+
+  const mapaHtml = c.tipo === 'SPINNING'
+    ? _renderAdminCyclingMap(c.cupoTotal, c.espacios)
+    : _renderAdminPilatesMap(c.cupoTotal, c.espacios);
+  document.getElementById('espDetailMap').innerHTML = mapaHtml;
+
+  const sinLugarHtml = c.sinLugar && c.sinLugar.length
+    ? `<div class="esp-sin-lugar">
+        <div class="esp-sl-title">Sin lugar asignado (${c.sinLugar.length})</div>
+        ${c.sinLugar.map(r => `<div class="esp-sl-item">
+          <span class="esp-sl-nombre">${r.usuarioNombre}</span>
+          <span class="esp-sl-email">${r.usuarioEmail}</span>
+          ${r.reservacionId
+            ? `<button class="esp-sl-liberar" onclick="_espLiberarLugar(${r.reservacionId},'${r.usuarioNombre.replace(/'/g,"\\'")}')">Liberar</button>`
+            : ''}
+        </div>`).join('')}
+       </div>` : '';
+
+  const canceladasHtml = c.canceladas && c.canceladas.length
+    ? `<div class="esp-canceladas">
+        <div class="esp-sl-title">Canceladas (${c.canceladas.length})</div>
+        ${c.canceladas.map(r => `<div class="esp-sl-item">
+          <span class="esp-sl-nombre">${r.usuarioNombre}</span>
+          <span class="esp-sl-email">${r.usuarioEmail}</span>
+          <span class="esp-cancelada-badge">CANCELADA</span>
+        </div>`).join('')}
+       </div>` : '';
+
+  document.getElementById('espDetailSinLugar').innerHTML = sinLugarHtml + canceladasHtml;
+
+  document.getElementById('espCalView').style.display    = 'none';
+  document.getElementById('espDetailView').style.display = 'block';
+}
+
+function espVolverCalendario() {
+  _espOcultarTooltip();
+  document.getElementById('espDetailView').style.display = 'none';
+  document.getElementById('espCalView').style.display    = 'block';
+}
+
+// ── Diagramas de asientos (admin, vista solo lectura + tooltip) ─
+function _renderAdminCyclingMap(cupoTotal, espacios) {
+  const ROW_SIZE = 8;
+  const mapa = {};
+  espacios.forEach(e => { mapa[e.numero] = e; });
+
+  const SVG_BIKE = `<svg class="seat-bike-svg" viewBox="0 0 24 24"><path d="M5 20.5A3.5 3.5 0 0 1 1.5 17 3.5 3.5 0 0 1 5 13.5 3.5 3.5 0 0 1 8.5 17 3.5 3.5 0 0 1 5 20.5M5 12A5 5 0 0 0 0 17a5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m9.8-2H19V8h-3.2L13 5.5c-.4-.5-1-.8-1.6-.8-.8 0-1.5.5-1.8 1.2L7.4 11c-.2.5-.4 1-.4 1.5A2.5 2.5 0 0 0 9.5 15H11v5h2v-7H9.5c-.1 0-.2 0-.2-.1l2-4.5L13 11h1.8M19 20.5A3.5 3.5 0 0 1 15.5 17 3.5 3.5 0 0 1 19 13.5 3.5 3.5 0 0 1 22.5 17 3.5 3.5 0 0 1 19 20.5m0-8.5a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-2-4.5a1.5 1.5 0 0 0 1.5 1.5A1.5 1.5 0 0 0 20 7.5 1.5 1.5 0 0 0 18.5 6 1.5 1.5 0 0 0 17 7.5z"/></svg>`;
+
+  function bikeBtn(n) {
+    const e = mapa[n]; const ocu = e && e.ocupado;
+    if (ocu) {
+      const nombre = (e.usuarioNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const email  = (e.usuarioEmail  || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const rid    = e.reservacionId ?? 0;
+      return `<div class="seat-bike ocupado esp-ocu esp-seat esp-seat-ocu" onclick="_espMostrarTooltip(event,'${nombre}','${email}',${rid})">
+        ${SVG_BIKE}<span class="seat-num">${n}</span>
+      </div>`;
+    }
+    return `<div class="seat-bike disponible esp-seat">${SVG_BIKE}<span class="seat-num">${n}</span></div>`;
+  }
+
+  const frontEnd = Math.min(ROW_SIZE, cupoTotal);
+  let html = `<div class="seat-map">
+    <div class="seat-stage"><div class="seat-stage-label">Instructor · Pantalla</div></div>
+    <div class="seat-zone-label">Frente</div>
+    <div class="seat-row">`;
+  for (let n = 1; n <= frontEnd; n++) html += bikeBtn(n);
+  html += '</div>';
+  if (cupoTotal > ROW_SIZE) {
+    html += '<div class="seat-zone-divider">Atrás</div>';
+    let seat = ROW_SIZE + 1;
+    while (seat <= cupoTotal) {
+      html += '<div class="seat-row">';
+      for (let i = 0; i < ROW_SIZE && seat <= cupoTotal; i++) html += bikeBtn(seat++);
+      html += '</div>';
+    }
+  }
+  return html + '</div>';
+}
+
+function _renderAdminPilatesMap(cupoTotal, espacios) {
+  const mapa = {};
+  espacios.forEach(e => { mapa[e.numero] = e; });
+
+  let html = `<div class="seat-map">
+    <div class="seat-stage"><div class="seat-stage-label">Instructor · Espejo</div></div>`;
+  let seat = 1;
+  while (seat <= cupoTotal) {
+    html += '<div class="seat-row esp-pilates-row">';
+    for (let i = 0; i < 3 && seat <= cupoTotal; i++) {
+      const n = seat++; const e = mapa[n]; const ocu = e && e.ocupado;
+      if (ocu) {
+        const nombre = (e.usuarioNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const email  = (e.usuarioEmail  || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const rid    = e.reservacionId ?? 0;
+        html += `<div class="seat-mat ocupado esp-ocu esp-seat esp-seat-ocu" onclick="_espMostrarTooltip(event,'${nombre}','${email}',${rid})">
+          <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
+          <span class="seat-num">Mat ${n}</span>
+        </div>`;
+      } else {
+        html += `<div class="seat-mat disponible esp-seat">
+          <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
+          <span class="seat-num">Mat ${n}</span>
+        </div>`;
+      }
+    }
+    html += '</div>';
+  }
+  return html + '</div>';
+}
+
+// ── Tooltip de asiento ocupado ────────────────────────────────
+function _espMostrarTooltip(event, nombre, email, reservacionId) {
+  event.stopPropagation();
+  const rect = event.currentTarget.getBoundingClientRect();
+  document.getElementById('espTooltipNombre').textContent = nombre;
+  document.getElementById('espTooltipEmail').textContent  = email;
+  document.getElementById('espTooltipLiberar').innerHTML  = reservacionId
+    ? `<button class="esp-tooltip-liberar" onclick="_espLiberarLugar(${reservacionId},'${nombre.replace(/'/g,"\\'")}')">Liberar lugar</button>`
+    : '';
+  const tt = document.getElementById('espSeatTooltip');
+  tt.style.display = 'block';
+  let left = rect.left + rect.width / 2 - 100;
+  let top  = rect.bottom + 8;
+  left = Math.max(8, Math.min(left, window.innerWidth - 216));
+  if (top + 100 > window.innerHeight) top = rect.top - 100 - 8;
+  tt.style.left = left + 'px';
+  tt.style.top  = top  + 'px';
+}
+function _espOcultarTooltip() {
+  document.getElementById('espSeatTooltip').style.display = 'none';
+}
+
+// ── Liberar lugar desde espacios ─────────────────────────────
+function _espLiberarLugar(reservacionId, nombre) {
+  showConfirm(
+    'Liberar lugar',
+    `¿Confirmar que ${nombre} no asistió? El lugar queda disponible y el crédito no se devuelve.`,
+    'Sí, liberar lugar',
+    'btn-danger',
+    () => _doEspLiberarLugar(reservacionId)
+  );
+}
+
+async function _doEspLiberarLugar(reservacionId) {
+  try {
+    await api('PATCH', `/admin/reservaciones/${reservacionId}/no-asistio`);
+    _espOcultarTooltip();
+    showToast('Lugar liberado', 'El lugar fue liberado. El crédito no fue devuelto al cliente.');
+    _espaciosData = await api('GET', `/admin/clases/espacios/semana?offset=${espaciosOffset}`);
+    _espaciosData.forEach(c => { _espClaseMap[`${c.claseId}_${c.fecha}`] = c; });
+    document.getElementById('espTimestamp').textContent =
+      `Actualizado: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
+    if (_espCurrentDetailKey) _espAbrirDetalle(_espCurrentDetailKey);
+  } catch(e) {
+    showToast('Error', e.message);
+  }
+}
+
+function closeEspacios() {
+  document.getElementById('espaciosOverlay').classList.remove('show');
+  _espOcultarTooltip();
+  clearInterval(_espaciosTimer);
+  _espaciosTimer = null;
+}
+function espaciosOverlayClick(e) {
+  if (e.target === document.getElementById('espaciosOverlay')) closeEspacios();
+}
+
+/* ═══════════════════════════════════════════
    UTILS
 ═══════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeAuth(); closeDrawer(); closeReserv(); closeConfirm(); closeClases(); closeClaseForm(); closeGenericConfirm(); closeSeatSelector(); closeGestionInstructores(); closeInstructorForm(); closePago(); closeEfectivo(); closeEquipo(); closePaquetes(); closeEnCurso(); closeClientes(); closeHistorial(); closePrivacidad(); closeTerminos(); closeContacto(); }
+  if (e.key === 'Escape') { closeAuth(); closeDrawer(); closeReserv(); closeConfirm(); closeClases(); closeClaseForm(); closeGenericConfirm(); closeSeatSelector(); closeGestionInstructores(); closeInstructorForm(); closePago(); closeEfectivo(); closeEquipo(); closePaquetes(); closeEspacios(); closeClientes(); closeHistorial(); closePrivacidad(); closeTerminos(); closeContacto(); }
 });
 
 /* ═══════════════════════════════════════════
@@ -2926,12 +3233,18 @@ async function loadCapacidad() {
     document.getElementById('navActions').innerHTML = buildNavUser(saved);
     updateDrawerAuth(saved);
   }
+  // Crítico: visible al abrir la página
   buildAgenda();
-  loadInstructores();
-  loadPagoConfig();
-  loadCreditos();
   loadPaquetes();
-  loadCapacidad();
+  if (currentUser) loadCreditos();
+
+  // No crítico: se retrasa para no competir con las llamadas anteriores
+  setTimeout(() => {
+    loadInstructores();
+    loadPagoConfig();
+    loadCapacidad();
+    if (!currentUser) loadCreditos(); // intento tardío si no había sesión al inicio
+  }, 1500);
 
   const urlToken = new URLSearchParams(window.location.search).get('token');
   if (urlToken) {
