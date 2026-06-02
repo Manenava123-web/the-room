@@ -56,7 +56,8 @@ public class ReservacionService {
         Clase clase = claseRepository.findByIdForUpdate(request.getClaseId())
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
 
-        if (clase.isFull()) {
+        int tomadosEnFecha = reservacionRepository.countConfirmadasByClaseAndFecha(clase.getId(), request.getFecha());
+        if (tomadosEnFecha >= clase.getCupoTotal()) {
             throw new AppException("La clase está llena", HttpStatus.CONFLICT);
         }
 
@@ -96,9 +97,6 @@ public class ReservacionService {
             descontarCredito(usuario, clase);
             usuarioRepository.save(usuario);
         }
-
-        clase.setCupoTomado(clase.getCupoTomado() + 1);
-        claseRepository.save(clase);
 
         return toDTO(reservacion);
     }
@@ -153,11 +151,6 @@ public class ReservacionService {
             }
             usuarioRepository.save(usuario);
         }
-
-        // Liberar el cupo
-        Clase clase = reservacion.getClase();
-        clase.setCupoTomado(Math.max(0, clase.getCupoTomado() - 1));
-        claseRepository.save(clase);
     }
 
     public List<ReservacionDTO> misReservaciones(Long usuarioId) {
@@ -182,7 +175,8 @@ public class ReservacionService {
         Clase clase = claseRepository.findByIdForUpdate(request.getClaseId())
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
 
-        if (clase.isFull()) {
+        int tomadosEnFechaAdmin = reservacionRepository.countConfirmadasByClaseAndFecha(clase.getId(), request.getFecha());
+        if (tomadosEnFechaAdmin >= clase.getCupoTotal()) {
             throw new AppException("La clase está llena", HttpStatus.CONFLICT);
         }
 
@@ -223,9 +217,6 @@ public class ReservacionService {
             usuarioRepository.save(usuario);
         }
 
-        clase.setCupoTomado(clase.getCupoTomado() + 1);
-        claseRepository.save(clase);
-
         return toAdminDTO(reservacion);
     }
 
@@ -264,10 +255,6 @@ public class ReservacionService {
             }
             usuarioRepository.save(usuarioAdmin);
         }
-
-        Clase clase = reservacion.getClase();
-        clase.setCupoTomado(Math.max(0, clase.getCupoTomado() - 1));
-        claseRepository.save(clase);
     }
 
     private ReservacionDTO toDTO(Reservacion r) {
@@ -317,11 +304,6 @@ public class ReservacionService {
         r.setEstado(EstadoReservacion.NO_ASISTIO);
         r.setFechaCancelacion(LocalDateTime.now());
         reservacionRepository.save(r);
-
-        // Libera el cupo sin devolver créditos — forfeit por no-show
-        Clase clase = r.getClase();
-        clase.setCupoTomado(Math.max(0, clase.getCupoTomado() - 1));
-        claseRepository.save(clase);
     }
 
     private boolean estaEnCurso(String hora, LocalTime ahora) {
