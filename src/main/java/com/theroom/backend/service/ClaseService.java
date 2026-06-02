@@ -3,11 +3,14 @@ package com.theroom.backend.service;
 import com.theroom.backend.dto.ClaseAdminDTO;
 import com.theroom.backend.dto.ClaseAdminRequest;
 import com.theroom.backend.dto.ClaseDTO;
+import com.theroom.backend.dto.ClaseEspaciosAdminDTO;
 import com.theroom.backend.dto.EquipoEstudioDTO;
 import com.theroom.backend.entity.Clase;
 import com.theroom.backend.entity.EquipoEstudio;
 import com.theroom.backend.entity.Instructor;
+import com.theroom.backend.entity.Reservacion;
 import com.theroom.backend.enums.DiaSemana;
+import com.theroom.backend.enums.EstadoReservacion;
 import com.theroom.backend.enums.TipoClase;
 import com.theroom.backend.exception.AppException;
 import com.theroom.backend.repository.ClaseRepository;
@@ -24,7 +27,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -229,6 +235,84 @@ public class ClaseService {
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
         java.util.List<Integer> ocupados = reservacionRepository.findLugaresOcupadosByClaseAndFecha(claseId, fecha);
         return java.util.Map.of("cupoTotal", clase.getCupoTotal(), "ocupados", ocupados);
+    }
+
+    // ── Admin: diagrama de espacios por semana ─────────────────
+    public List<ClaseEspaciosAdminDTO> obtenerEspaciosPorSemana(int offset) {
+        LocalDate lunes = LocalDate.now(ZoneId.of("America/Mexico_City"))
+                .with(DayOfWeek.MONDAY)
+                .plusWeeks(offset);
+
+        Map<DiaSemana, LocalDate> fechaPorDia = new HashMap<>();
+        for (int i = 0; i < 7; i++) {
+            LocalDate fecha = lunes.plusDays(i);
+            fechaPorDia.put(toDiaSemana(fecha.getDayOfWeek()), fecha);
+        }
+
+        return claseRepository.findByDiaSemanaInAndActivoTrue(new ArrayList<>(fechaPorDia.keySet()))
+                .stream()
+                .map(c -> {
+                    LocalDate fecha = fechaPorDia.get(c.getDiaSemana());
+                    List<Reservacion> reservas = reservacionRepository
+                            .findByClaseIdAndFechaAndEstado(c.getId(), fecha, EstadoReservacion.CONFIRMADA);
+
+                    Map<Integer, Reservacion> porLugar = reservas.stream()
+                            .filter(r -> r.getLugarNumero() != null)
+                            .collect(Collectors.toMap(Reservacion::getLugarNumero, r -> r));
+
+                    List<ClaseEspaciosAdminDTO.EspacioDTO> espacios = new ArrayList<>();
+                    for (int n = 1; n <= c.getCupoTotal(); n++) {
+                        Reservacion r = porLugar.get(n);
+                        espacios.add(ClaseEspaciosAdminDTO.EspacioDTO.builder()
+                                .numero(n)
+                                .ocupado(r != null)
+                                .reservacionId(r != null ? r.getId() : null)
+                                .usuarioNombre(r != null ? r.getUsuario().getNombre() + " " + r.getUsuario().getApellido() : null)
+                                .usuarioEmail(r != null ? r.getUsuario().getEmail() : null)
+                                .build());
+                    }
+
+                    List<ClaseEspaciosAdminDTO.ReservaSinLugarDTO> sinLugar = reservas.stream()
+                            .filter(r -> r.getLugarNumero() == null)
+                            .map(r -> ClaseEspaciosAdminDTO.ReservaSinLugarDTO.builder()
+                                    .reservacionId(r.getId())
+                                    .usuarioNombre(r.getUsuario().getNombre() + " " + r.getUsuario().getApellido())
+                                    .usuarioEmail(r.getUsuario().getEmail())
+                                    .build())
+                            .collect(Collectors.toList());
+
+                    List<ClaseEspaciosAdminDTO.ReservaSinLugarDTO> canceladas = reservacionRepository
+                            .findByClaseIdAndFechaAndEstado(c.getId(), fecha, EstadoReservacion.CANCELADA)
+                            .stream()
+                            .map(r -> ClaseEspaciosAdminDTO.ReservaSinLugarDTO.builder()
+                                    .reservacionId(r.getId())
+                                    .usuarioNombre(r.getUsuario().getNombre() + " " + r.getUsuario().getApellido())
+                                    .usuarioEmail(r.getUsuario().getEmail())
+                                    .build())
+                            .collect(Collectors.toList());
+
+                    int tomados = reservas.size();
+                    int disponibles = Math.max(0, c.getCupoTotal() - tomados);
+
+                    return ClaseEspaciosAdminDTO.builder()
+                            .claseId(c.getId())
+                            .tipo(c.getTipo())
+                            .diaSemana(c.getDiaSemana())
+                            .fecha(fecha)
+                            .hora(c.getHora())
+                            .instructor(c.getInstructor() != null ? c.getInstructor().getNombreCompleto() : null)
+                            .cupoTotal(c.getCupoTotal())
+                            .cupoTomado(tomados)
+                            .lugaresDisponibles(disponibles)
+                            .llena(disponibles == 0)
+                            .espacios(espacios)
+                            .sinLugar(sinLugar)
+                            .canceladas(canceladas)
+                            .build();
+                })
+                .sorted(Comparator.comparing(ClaseEspaciosAdminDTO::getFecha)
+                        .thenComparing(ClaseEspaciosAdminDTO::getHora))
+                .collect(Collectors.toList());
     }
 
     private Instructor resolverInstructor(Long instructorId) {

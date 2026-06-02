@@ -1465,15 +1465,20 @@ input::placeholder{color:var(--stone-pale)}
   padding-top:10px;margin-top:8px;
 }
 .udrop-creditos{
-  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
-  font-size:11px;font-weight:400;letter-spacing:.04em;
-  color:var(--stone);margin-top:4px;
+  display:flex;flex-direction:column;gap:5px;
+  margin-top:6px;
 }
-.udrop-creditos strong{color:var(--black);font-weight:600}
-.udrop-creditos-sep{color:var(--border-dark);font-size:9px}
-.creditos-vence{font-size:10px;color:var(--stone-light);letter-spacing:.04em}
-.creditos-exp{color:var(--danger)!important;font-weight:600}
-.drawer-user-info .creditos-vence{display:none}
+/* Fila por disciplina */
+.cred-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.cred-disc{
+  font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--stone-light);min-width:94px;flex-shrink:0;
+}
+.cred-count{font-size:13px;font-weight:700;color:var(--black);line-height:1}
+/* Fecha de vencimiento */
+.cred-vence{font-size:11px;color:var(--stone-light);letter-spacing:.02em}
+.cred-warn{color:var(--accent-dark)!important;font-weight:600}
+.cred-exp{color:var(--danger)!important;font-weight:700}
 .ef-pkg-vigencia{display:block;font-size:10px;color:inherit;opacity:.5;margin-top:1px;letter-spacing:.04em}
 
 /* ═══════════════════════════════════════════
@@ -1757,5 +1762,208 @@ input::placeholder{color:var(--stone-pale)}
   color:var(--charcoal);
   font-weight:500;
   text-decoration:none;
+}
+
+/* ═══════════════════════════════════════════
+   ESPACIOS POR CLASE (Admin)
+═══════════════════════════════════════════ */
+
+/* Contenedor scrollable del calendario */
+.esp-cal-wrap{overflow-x:auto;overflow-y:auto;max-height:380px}
+
+/* Grid más compacto dentro del módulo de espacios */
+#espaciosOverlay .admin-cal-grid .aw-day{padding:8px 4px}
+#espaciosOverlay .admin-cal-grid .aw-day .aw-day-name{font-size:10px;letter-spacing:.08em}
+#espaciosOverlay .admin-cal-grid .aw-day .aw-day-num{font-size:15px}
+#espaciosOverlay .admin-cal-grid .aw-time{padding:7px 8px 0 0;font-size:10px}
+#espaciosOverlay .admin-cal-grid .aw-cell{min-height:64px;padding:5px 4px}
+#espaciosOverlay .admin-pill{padding:7px 7px 5px;gap:3px}
+#espaciosOverlay .ap-nombre{font-size:10px}
+#espaciosOverlay .ap-inst{font-size:10px}
+#espaciosOverlay .esp-cupo-line{font-size:10px}
+#espaciosOverlay .esp-ver-label{font-size:8px}
+
+/* Pill en el calendario — reutiliza admin-pill pero sin botones de acción */
+.esp-pill{cursor:pointer;gap:4px}
+.esp-pill:hover{opacity:.85}
+.esp-pill.esp-pill-past{cursor:default;pointer-events:none}
+.esp-cupo-line{font-size:11px;font-weight:600;margin-top:2px}
+.esp-cupo-ok{color:#7ddb9f}
+.esp-cupo-casi{color:#ffd27a}
+.esp-cupo-llena{color:#ff9f9f}
+.esp-ver-label{font-size:9px;letter-spacing:.07em;text-transform:uppercase;opacity:.65;margin-top:auto}
+
+/* ── Botón volver ── */
+.esp-back-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  margin-bottom:16px;
+  padding:6px 14px;
+  border:1.5px solid var(--border-dark);border-radius:6px;
+  background:transparent;font-family:var(--ff-sans);font-size:12px;
+  color:var(--stone);cursor:pointer;transition:all .15s;
+}
+.esp-back-btn:hover{border-color:var(--accent);color:var(--accent-dark)}
+
+/* ── Cabecera del detalle ── */
+.esp-detail-header{
+  display:flex;flex-wrap:wrap;align-items:flex-start;
+  justify-content:space-between;gap:12px;
+  padding-bottom:14px;margin-bottom:4px;
+  border-bottom:1px solid var(--border);
+}
+.esp-detail-tipo{
+  font-family:var(--ff-serif);font-size:18px;font-weight:400;color:var(--black);
+}
+.esp-detail-meta{font-size:12px;color:var(--stone);margin-top:3px}
+.esp-detail-cupo{margin-top:6px}
+.esp-badge-ok{font-size:12px;font-weight:700;color:var(--black)}
+.esp-badge-casi{font-size:12px;font-weight:700;color:var(--accent-dark)}
+.esp-badge-llena{font-size:12px;font-weight:700;color:var(--danger)}
+.esp-detail-legend{
+  display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0;
+  font-size:11px;color:var(--stone);
+}
+.esp-legend-item{display:flex;align-items:center;gap:5px}
+.esp-legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.esp-ld-ocu{background:var(--danger);opacity:.85}
+.esp-ld-libre{border:2px solid var(--accent)}
+
+/* ── Mapa de asientos en vista detalle ── */
+.esp-detail-map{overflow-x:auto;padding:4px 0}
+.esp-seat{cursor:default !important;position:relative}
+.esp-seat-ocu{cursor:pointer !important}
+.esp-seat:not(.esp-seat-ocu):hover{transform:none !important;box-shadow:none !important;background:none !important}
+.seat-bike.esp-ocu,.seat-mat.esp-ocu{
+  opacity:1;border-color:var(--danger);color:var(--danger);background:var(--danger-pale);
+}
+.seat-bike.esp-ocu:hover,.seat-mat.esp-ocu:hover{
+  background:var(--danger) !important;color:var(--white) !important;
+  transform:translateY(-2px) !important;box-shadow:0 4px 12px rgba(192,57,43,.3) !important;
+}
+.esp-seat-ini{
+  font-size:9px;font-weight:700;
+  position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
+  color:inherit;letter-spacing:.03em;white-space:nowrap;
+}
+
+/* Filas de Pilates centradas (3 mats de ancho fijo, no llenan los 8 slots del grid) */
+.esp-pilates-row{
+  display:flex !important;
+  justify-content:center;
+  gap:6px;
+}
+
+/* ── Tooltip flotante (posición fixed, fuera del modal) ── */
+.esp-seat-tooltip{
+  position:fixed;z-index:9999;
+  background:var(--charcoal);color:var(--white);
+  border-radius:10px;padding:12px 16px 12px 14px;
+  min-width:180px;max-width:260px;
+  box-shadow:0 6px 24px rgba(0,0,0,.28);
+  font-family:var(--ff-sans);
+}
+.esp-tooltip-close{
+  position:absolute;top:7px;right:10px;
+  background:none;border:none;color:rgba(255,255,255,.55);
+  font-size:14px;cursor:pointer;padding:0;line-height:1;
+}
+.esp-tooltip-close:hover{color:var(--white)}
+.esp-tooltip-nombre{font-size:13px;font-weight:500;padding-right:20px;margin-bottom:3px}
+.esp-tooltip-email{font-size:11px;color:rgba(255,255,255,.65)}
+
+/* ── Sin lugar asignado ── */
+.esp-sin-lugar{
+  margin-top:14px;padding:10px 12px;
+  border:1px dashed var(--stone-light);border-radius:8px;
+}
+.esp-sl-title{
+  font-size:10px;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--stone);margin-bottom:8px;
+}
+.esp-sl-item{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:8px;padding:5px 0;border-bottom:1px solid var(--border);
+}
+.esp-sl-item:last-child{border-bottom:none}
+.esp-sl-nombre{font-size:12px;font-weight:500;color:var(--charcoal)}
+.esp-sl-email{font-size:11px;color:var(--stone)}
+
+/* Sección canceladas */
+.esp-canceladas{
+  margin-top:10px;padding:10px 12px;
+  border:1px dashed var(--stone-pale);border-radius:8px;
+  background:var(--cream);
+}
+.esp-cancelada-badge{
+  flex-shrink:0;padding:2px 8px;
+  border-radius:20px;
+  border:1px solid var(--stone-pale);
+  background:var(--stone-pale);
+  font-size:10px;font-weight:700;
+  letter-spacing:.06em;color:var(--stone);
+  text-transform:uppercase;
+}
+.esp-sl-liberar{
+  flex-shrink:0;padding:4px 12px;
+  border:1.5px solid var(--danger);border-radius:6px;
+  background:transparent;font-family:var(--ff-sans);font-size:11px;font-weight:500;
+  color:var(--danger);cursor:pointer;transition:all .15s;
+}
+.esp-sl-liberar:hover{background:var(--danger);color:var(--white)}
+
+/* Badge EN CURSO en cabecera de detalle */
+.esp-en-curso-badge{
+  display:inline-block;padding:2px 9px;margin-left:8px;
+  background:var(--success);color:var(--white);
+  border-radius:20px;font-size:10px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;
+  vertical-align:middle;font-family:var(--ff-sans);
+}
+
+/* Hint de liberar en la leyenda */
+.esp-legend-liberar .esp-legend-dot{background:var(--danger);border:none;opacity:1}
+
+/* Botón liberar dentro del tooltip */
+.esp-tooltip-liberar{
+  display:block;width:100%;margin-top:10px;
+  padding:7px 0;border-radius:6px;
+  background:rgba(192,57,43,.8);border:1px solid rgba(192,57,43,.95);
+  color:var(--white);font-size:12px;font-weight:500;
+  cursor:pointer;font-family:var(--ff-sans);transition:background .15s;
+}
+.esp-tooltip-liberar:hover{background:var(--danger)}
+
+/* ══════════════════════════════════════════
+   ESPACIOS — RESPONSIVE MÓVIL
+══════════════════════════════════════════ */
+@media(max-width:860px){
+  .esp-cal-wrap{max-height:320px}
+  .esp-detail-legend{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:10px 16px}
+}
+@media(max-width:600px){
+  /* Calendario: scroll horizontal dentro de la tarjeta */
+  #espaciosOverlay{padding:12px 6px}
+  .esp-cal-wrap{max-height:260px}
+
+  /* Detalle: cabecera apila verticalmente */
+  .esp-detail-header{flex-direction:column;gap:8px}
+  .esp-detail-legend{flex-direction:row;flex-wrap:wrap;justify-content:flex-start;gap:8px 14px}
+  .esp-detail-tipo{font-size:15px}
+  .esp-detail-meta{font-size:11px}
+
+  /* Mapa: bicis más pequeñas, mismo tamaño que en el selector de usuario */
+  .esp-detail-map .seat-bike{border-radius:8px}
+  .esp-detail-map .seat-bike-svg{width:18px;height:18px}
+  .esp-detail-map .seat-num{font-size:9px}
+  .esp-detail-map .seat-row{gap:4px}
+
+  /* Pilates: mats ligeramente más pequeños */
+  .esp-detail-map .seat-mat{width:86px;height:50px}
+
+  /* Tooltip: ancho completo en pantallas muy pequeñas */
+  .esp-seat-tooltip{left:8px !important;right:8px;min-width:unset;max-width:unset;width:calc(100vw - 16px)}
+
+  /* Back button más compacto */
+  .esp-back-btn{font-size:11px;padding:5px 10px}
 }
 a.contacto-val:hover{color:var(--accent-dark);text-decoration:underline}

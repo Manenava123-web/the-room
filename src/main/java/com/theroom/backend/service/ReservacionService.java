@@ -125,12 +125,10 @@ public class ReservacionService {
         }
         boolean esCycling = reservacion.getClase().getTipo() == TipoClase.SPINNING;
         if (esCycling) {
-            if (fecha.isEqual(hoy)) {
-                LocalTime ahora = LocalTime.now(zona);
-                LocalTime inicioClase = LocalTime.parse(reservacion.getClase().getHora());
-                if (!ahora.isBefore(inicioClase.minusHours(horasCancelarCycling))) {
-                    throw new AppException("Solo puedes cancelar tu clase de Cycling hasta " + horasCancelarCycling + " horas antes del inicio", HttpStatus.BAD_REQUEST);
-                }
+            LocalDateTime limiteCancel = LocalDateTime.of(fecha, LocalTime.parse(reservacion.getClase().getHora()))
+                    .minusHours(horasCancelarCycling);
+            if (!LocalDateTime.now(zona).isBefore(limiteCancel)) {
+                throw new AppException("Solo puedes cancelar tu clase de Cycling hasta " + horasCancelarCycling + " horas antes del inicio", HttpStatus.BAD_REQUEST);
             }
         } else {
             LocalDateTime limiteCancel = LocalDateTime.of(fecha, LocalTime.parse(reservacion.getClase().getHora())).minusHours(horasCancelarPilates);
@@ -241,8 +239,13 @@ public class ReservacionService {
             throw new AppException("Solo se pueden cancelar reservaciones confirmadas", HttpStatus.BAD_REQUEST);
         }
 
-        if (reservacion.getFecha().isBefore(LocalDate.now(ZoneId.of("America/Mexico_City")))) {
-            throw new AppException("No se puede cancelar una reservación de una clase que ya pasó", HttpStatus.BAD_REQUEST);
+        ZoneId zonaAdmin = ZoneId.of("America/Mexico_City");
+        LocalDateTime ahora = LocalDateTime.now(zonaAdmin);
+        LocalDateTime inicioClase = LocalDateTime.of(
+                reservacion.getFecha(),
+                LocalTime.parse(reservacion.getClase().getHora()));
+        if (!ahora.isBefore(inicioClase)) {
+            throw new AppException("No se puede cancelar una clase que ya inició o terminó", HttpStatus.BAD_REQUEST);
         }
 
         reservacion.setEstado(EstadoReservacion.CANCELADA);
