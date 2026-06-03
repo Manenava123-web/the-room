@@ -2863,6 +2863,7 @@ let espaciosDisc       = 'CYCLING';
 let espaciosOffset     = 0;
 const _espClaseMap     = {};   // clave `${claseId}_${fecha}` → datos de clase
 let _espClaseEnCurso   = false;
+let _espClaseEsPasada  = false;
 let _espCurrentDetailKey = null;
 
 async function openEspacios() {
@@ -3005,6 +3006,17 @@ function _espEstaEnCurso(fecha, hora) {
   return minAhora >= minInicio && minAhora < minInicio + 75;
 }
 
+// ── Detecta si una clase ya pasó (fecha anterior o ya inició hoy) ─
+function _espEsPasada(fecha, hora) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const hoy = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  if (fecha < hoy) return true;
+  if (fecha > hoy) return false;
+  const [h, m] = hora.split(':').map(Number);
+  return now.getHours() * 60 + now.getMinutes() >= h * 60 + m;
+}
+
 // ── Abre el diagrama de una clase ────────────────────────────
 function _espAbrirDetalle(key) {
   const c = _espClaseMap[key];
@@ -3012,6 +3024,7 @@ function _espAbrirDetalle(key) {
   _espOcultarTooltip();
   _espCurrentDetailKey = key;
   _espClaseEnCurso     = _espEstaEnCurso(c.fecha, c.hora);
+  _espClaseEsPasada    = _espEsPasada(c.fecha, c.hora);
 
   const [y, m, d] = c.fecha.split('-').map(Number);
   const fechaFmt = new Date(y, m - 1, d)
@@ -3021,16 +3034,19 @@ function _espAbrirDetalle(key) {
   const badgeCls = c.llena ? 'esp-badge-llena' : libres <= 2 ? 'esp-badge-casi' : 'esp-badge-ok';
   const cupoStr = `${c.cupoTomado}/${c.cupoTotal} ocupados · ${libres} libre${libres !== 1 ? 's' : ''}`;
   const enCursoTag  = _espClaseEnCurso ? '<span class="esp-en-curso-badge">EN CURSO</span>' : '';
-  const liberarHint = '<span class="esp-legend-item esp-legend-liberar"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · click para ver / liberar</span>';
+  const pasadaTag   = _espClaseEsPasada && !_espClaseEnCurso ? '<span class="esp-en-curso-badge" style="background:var(--stone)">PASADA</span>' : '';
+  const ocupadoHint = _espClaseEsPasada
+    ? '<span class="esp-legend-item"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · solo lectura</span>'
+    : '<span class="esp-legend-item esp-legend-liberar"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · click para ver / liberar</span>';
 
   document.getElementById('espDetailHeader').innerHTML = `
     <div class="esp-detail-info">
-      <div class="esp-detail-tipo">${c.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'}${enCursoTag}</div>
+      <div class="esp-detail-tipo">${c.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'}${enCursoTag}${pasadaTag}</div>
       <div class="esp-detail-meta">${titulo} · ${c.hora.replace(/^0/, '')} h${c.instructor ? ` · ${c.instructor}` : ''}</div>
       <div class="esp-detail-cupo"><span class="${badgeCls}">${cupoStr}</span></div>
     </div>
     <div class="esp-detail-legend">
-      ${liberarHint}
+      ${ocupadoHint}
       <span class="esp-legend-item"><span class="esp-legend-dot esp-ld-libre"></span>Libre</span>
     </div>`;
 
@@ -3045,7 +3061,7 @@ function _espAbrirDetalle(key) {
         ${c.sinLugar.map(r => `<div class="esp-sl-item">
           <span class="esp-sl-nombre">${r.usuarioNombre}</span>
           <span class="esp-sl-email">${r.usuarioEmail}</span>
-          ${r.reservacionId
+          ${!_espClaseEsPasada && r.reservacionId
             ? `<button class="esp-sl-liberar" onclick="_espLiberarLugar(${r.reservacionId},'${r.usuarioNombre.replace(/'/g,"\\'")}')">Liberar</button>`
             : ''}
         </div>`).join('')}
@@ -3150,7 +3166,7 @@ function _espMostrarTooltip(event, nombre, email, reservacionId) {
   const rect = event.currentTarget.getBoundingClientRect();
   document.getElementById('espTooltipNombre').textContent = nombre;
   document.getElementById('espTooltipEmail').textContent  = email;
-  document.getElementById('espTooltipLiberar').innerHTML  = reservacionId
+  document.getElementById('espTooltipLiberar').innerHTML  = (!_espClaseEsPasada && reservacionId)
     ? `<button class="esp-tooltip-liberar" onclick="_espLiberarLugar(${reservacionId},'${nombre.replace(/'/g,"\\'")}')">Liberar lugar</button>`
     : '';
   const tt = document.getElementById('espSeatTooltip');
