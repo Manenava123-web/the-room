@@ -119,6 +119,19 @@ public class AdminController {
         return ResponseEntity.ok(claseService.toggleActivo(id));
     }
 
+    // DELETE /api/v1/admin/clases/{id}/fecha/{fecha} — cancelar clase en fecha específica
+    @DeleteMapping("/clases/{id}/fecha/{fecha}")
+    public ResponseEntity<java.util.Map<String, Object>> cancelarClasePorFecha(
+            @PathVariable Long id,
+            @PathVariable @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fecha) {
+        int canceladas = reservacionService.cancelarClasePorFecha(id, fecha);
+        return ResponseEntity.ok(java.util.Map.of(
+                "canceladas", canceladas,
+                "mensaje", canceladas == 0
+                        ? "No había reservaciones confirmadas para esta clase."
+                        : canceladas + " reservación(es) cancelada(s). Los créditos y fechas de vencimiento fueron actualizados."));
+    }
+
     // GET /api/v1/admin/instructores — activos (para dropdowns)
     @GetMapping("/instructores")
     public ResponseEntity<List<Instructor>> instructores() {

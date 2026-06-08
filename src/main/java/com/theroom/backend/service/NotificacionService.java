@@ -3,6 +3,7 @@ package com.theroom.backend.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theroom.backend.entity.Paquete;
 import com.theroom.backend.entity.Usuario;
+import com.theroom.backend.enums.TipoClase;
 import com.theroom.backend.enums.TipoDisciplina;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +19,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -67,6 +70,31 @@ public class NotificacionService {
     }
 
     @Async
+    public void enviarCancelacionClase(Usuario usuario, TipoClase tipo,
+                                       LocalDate fecha, String hora, String instructor) {
+        String disciplina = tipo == TipoClase.SPINNING ? "Indoor Cycling" : "Pilates";
+        String fechaFmt = fecha.format(DateTimeFormatter.ofPattern("EEEE d 'de' MMMM 'de' yyyy", new Locale("es", "MX")));
+        fechaFmt = fechaFmt.substring(0, 1).toUpperCase() + fechaFmt.substring(1);
+        String horaFmt = hora.replaceAll("^0", "") + " h";
+
+        String textFallback = "Hola " + usuario.getNombre() + ",\n\n"
+            + "Lamentamos informarte que tu clase de " + disciplina + " del " + fechaFmt
+            + " a las " + horaFmt + " ha sido cancelada por el estudio.\n\n"
+            + "Tu crédito fue devuelto automáticamente y la fecha de vencimiento de tus créditos "
+            + "se extendió 1 día.\n\n"
+            + "Puedes reservar otra clase desde la app cuando gustes. ¡Disculpa los inconvenientes!\n\n"
+            + studioNombre;
+
+        enviar(
+            usuario.getEmail(),
+            "Clase cancelada — " + disciplina + " " + fechaFmt + " · " + studioNombre,
+            buildCancelacionHtml(usuario, disciplina, fechaFmt, horaFmt, instructor),
+            textFallback,
+            "cancelación de clase"
+        );
+    }
+
+    @Async
     public void enviarResetPassword(Usuario usuario, String token) {
         String link = frontendUrl + "/the-room.html?token=" + token;
         String textFallback = "Hola " + usuario.getNombre() + ",\n\n"
@@ -81,6 +109,51 @@ public class NotificacionService {
             textFallback,
             "recuperación de contraseña"
         );
+    }
+
+    private String buildCancelacionHtml(Usuario usuario, String disciplina,
+                                        String fechaFmt, String horaFmt, String instructor) {
+        String instLinea = instructor != null
+            ? "<p style=\"margin:4px 0 0;font-size:13px;color:#666\">Instructor: " + instructor + "</p>"
+            : "";
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"></head>
+            <body style="font-family:Arial,sans-serif;background:#f5f0ea;margin:0;padding:24px">
+            <div style="max-width:480px;margin:0 auto;background:#ffffff;border-top:4px solid #c0392b">
+              <div style="padding:40px">
+                <p style="font-size:10px;letter-spacing:.22em;color:#aaa;text-transform:uppercase;margin:0 0 4px">%s</p>
+                <h1 style="font-family:Georgia,serif;font-size:26px;color:#1a1a1a;margin:0 0 8px;font-weight:400">Clase cancelada</h1>
+                <p style="font-size:14px;color:#666;margin:0 0 28px">
+                  Hola <strong>%s</strong>, lamentamos informarte que la siguiente clase fue cancelada por el estudio.
+                </p>
+                <div style="background:#f5f0ea;padding:20px 24px;border-left:3px solid #c0392b;margin-bottom:28px">
+                  <p style="margin:0 0 4px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.1em">Clase cancelada</p>
+                  <p style="margin:0;font-size:19px;color:#1a1a1a;font-weight:500">%s</p>
+                  <p style="margin:6px 0 0;font-size:13px;color:#666">%s &nbsp;&middot;&nbsp; %s</p>
+                  %s
+                </div>
+                <div style="background:#eafaf1;padding:16px 20px;border-radius:4px;margin-bottom:28px">
+                  <p style="margin:0;font-size:13px;color:#27ae60;font-weight:600">&#10003; Tu cr&eacute;dito fue devuelto autom&aacute;ticamente</p>
+                  <p style="margin:6px 0 0;font-size:12px;color:#555">La fecha de vencimiento de tus cr&eacute;ditos se extendi&oacute; 1 d&iacute;a.</p>
+                </div>
+                <p style="font-size:14px;color:#555;margin:0 0 8px">
+                  Puedes reservar otra clase desde la app cuando gustes. &iexcl;Disculpa los inconvenientes!
+                </p>
+                <hr style="border:none;border-top:1px solid #eee;margin:28px 0 20px"/>
+                <p style="font-size:11px;color:#ccc;margin:0;text-align:center">%s &middot; Chilapa, Guerrero</p>
+              </div>
+            </div>
+            </body></html>
+            """.formatted(
+                studioNombre,
+                usuario.getNombre(),
+                disciplina,
+                fechaFmt, horaFmt,
+                instLinea,
+                studioNombre
+            );
     }
 
     private void enviar(String to, String subject, String html, String text, String tipo) {

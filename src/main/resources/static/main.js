@@ -2979,10 +2979,11 @@ function _renderEspPill(c, key, isPast) {
   const instStr = c.instructor || 'Sin asignar';
 
   if (isPast) {
-    return `<div class="admin-pill ${tipo} inactiva esp-pill esp-pill-past">
+    return `<div class="admin-pill ${tipo} inactiva esp-pill esp-pill-past" onclick="_espAbrirDetalle('${key}')">
       <span class="ap-nombre">${isSpin ? 'Indoor Cycling' : 'Pilates'}</span>
       <span class="ap-inst">${instStr}</span>
       <span class="esp-cupo-line" style="opacity:.5">${c.cupoTomado}/${c.cupoTotal}</span>
+      <span class="esp-ver-label" style="opacity:.5">Ver espacios →</span>
     </div>`;
   }
 
@@ -3036,7 +3037,7 @@ function _espAbrirDetalle(key) {
   const enCursoTag  = _espClaseEnCurso ? '<span class="esp-en-curso-badge">EN CURSO</span>' : '';
   const pasadaTag   = _espClaseEsPasada && !_espClaseEnCurso ? '<span class="esp-en-curso-badge" style="background:var(--stone)">PASADA</span>' : '';
   const ocupadoHint = _espClaseEsPasada
-    ? '<span class="esp-legend-item"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · solo lectura</span>'
+    ? '<span class="esp-legend-item esp-legend-liberar"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · click para ver</span>'
     : '<span class="esp-legend-item esp-legend-liberar"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · click para ver / liberar</span>';
 
   document.getElementById('espDetailHeader').innerHTML = `
@@ -3079,8 +3080,46 @@ function _espAbrirDetalle(key) {
 
   document.getElementById('espDetailSinLugar').innerHTML = sinLugarHtml + canceladasHtml;
 
+  document.getElementById('espCancelarClaseBtn').style.display = _espClaseEsPasada ? 'none' : 'inline-flex';
+
   document.getElementById('espCalView').style.display    = 'none';
   document.getElementById('espDetailView').style.display = 'block';
+}
+
+function _espCancelarClase() {
+  const c = _espClaseMap[_espCurrentDetailKey];
+  if (!c) return;
+  const label = c.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates';
+  const [y, m, d] = c.fecha.split('-').map(Number);
+  const fechaFmt = new Date(y, m - 1, d)
+    .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  const reservadas = c.cupoTomado;
+  const detalle = reservadas > 0
+    ? `Se cancelarán ${reservadas} reservación(es). Cada cliente recuperará su crédito y se extenderá 1 día la fecha de vencimiento de sus créditos de ${label}.`
+    : 'Esta clase no tiene reservaciones confirmadas.';
+
+  showConfirm(
+    'Cancelar clase',
+    `¿Cancelar la clase de ${label} del ${fechaFmt} a las ${c.hora.replace(/^0/, '')} h?\n\n${detalle}`,
+    'Sí, cancelar clase',
+    'btn-danger',
+    () => _doEspCancelarClase(c.claseId, c.fecha)
+  );
+}
+
+async function _doEspCancelarClase(claseId, fecha) {
+  try {
+    const res = await api('DELETE', `/admin/clases/${claseId}/fecha/${fecha}`);
+    showToast('Clase cancelada', res.mensaje, 'success');
+    espVolverCalendario();
+    _espaciosData = await api('GET', `/admin/clases/espacios/semana?offset=${espaciosOffset}`);
+    _espaciosData.forEach(c => { _espClaseMap[`${c.claseId}_${c.fecha}`] = c; });
+    document.getElementById('espTimestamp').textContent =
+      `Actualizado: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
+    _renderEspacios();
+  } catch(e) {
+    showToast('Error', e.message || 'No se pudo cancelar la clase.', 'error');
+  }
 }
 
 function espVolverCalendario() {
