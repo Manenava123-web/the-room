@@ -174,17 +174,22 @@ public class PaypalService {
 
     private void aplicarCreditos(Usuario usuario, Paquete paquete) {
         LocalDate today = LocalDate.now(ZoneId.of("America/Mexico_City"));
-        LocalDate nuevaVigencia = sumarDiasHabiles(today, paquete.getVigenciaDias());
         if (paquete.getDisciplina() == TipoDisciplina.CYCLING) {
-            usuario.setCreditosCycling(usuario.getCreditosCycling() + paquete.getNumClases());
             LocalDate actual = usuario.getCreditosCyclingVencen();
-            usuario.setCreditosCyclingVencen(
-                    actual != null && actual.isAfter(nuevaVigencia) ? actual : nuevaVigencia);
+            boolean vigente = actual != null && actual.isAfter(today);
+            usuario.setCreditosCycling(vigente
+                    ? usuario.getCreditosCycling() + paquete.getNumClases()
+                    : paquete.getNumClases());
+            LocalDate base = vigente ? actual : today;
+            usuario.setCreditosCyclingVencen(sumarDiasHabiles(base, paquete.getVigenciaDias()));
         } else {
-            usuario.setCreditosPilates(usuario.getCreditosPilates() + paquete.getNumClases());
             LocalDate actual = usuario.getCreditosPilatesVencen();
-            usuario.setCreditosPilatesVencen(
-                    actual != null && actual.isAfter(nuevaVigencia) ? actual : nuevaVigencia);
+            boolean vigente = actual != null && actual.isAfter(today);
+            usuario.setCreditosPilates(vigente
+                    ? usuario.getCreditosPilates() + paquete.getNumClases()
+                    : paquete.getNumClases());
+            LocalDate base = vigente ? actual : today;
+            usuario.setCreditosPilatesVencen(sumarDiasHabiles(base, paquete.getVigenciaDias()));
         }
     }
 

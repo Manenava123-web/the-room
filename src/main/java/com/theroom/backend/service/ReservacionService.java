@@ -22,6 +22,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -38,6 +40,7 @@ public class ReservacionService {
     private final ReservacionRepository reservacionRepository;
     private final ClaseRepository claseRepository;
     private final UsuarioRepository usuarioRepository;
+    private final NotificacionService notificacionService;
 
     @Value("${app.cycling.limite-mensual:900}")
     private int limiteMensualCycling;
@@ -255,6 +258,56 @@ public class ReservacionService {
             }
             usuarioRepository.save(usuarioAdmin);
         }
+    }
+
+    // ── Admin: cancelar todas las reservaciones de una clase en una fecha ──
+    @Transactional
+    public int cancelarClasePorFecha(Long claseId, LocalDate fecha) {
+        Clase clase = claseRepository.findById(claseId)
+                .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
+
+        List<Reservacion> confirmadas = reservacionRepository
+                .findByClaseIdAndFechaAndEstado(claseId, fecha, EstadoReservacion.CONFIRMADA);
+
+        if (confirmadas.isEmpty()) return 0;
+
+        TipoDisciplina disc = clase.getTipo().getDisciplina();
+        LocalDateTime ahora = LocalDateTime.now();
+        String instructor = clase.getInstructor() != null ? clase.getInstructor().getNombreCompleto() : null;
+
+        for (Reservacion r : confirmadas) {
+            r.setEstado(EstadoReservacion.CANCELADA);
+            r.setFechaCancelacion(ahora);
+            reservacionRepository.save(r);
+
+            Usuario u = r.getUsuario();
+            if (u.getRol() == RolUsuario.CLIENTE) {
+                if (disc == TipoDisciplina.CYCLING) {
+                    u.setCreditosCycling(u.getCreditosCycling() + 1);
+                    if (u.getCreditosCyclingVencen() != null) {
+                        u.setCreditosCyclingVencen(u.getCreditosCyclingVencen().plusDays(1));
+                    }
+                } else {
+                    u.setCreditosPilates(u.getCreditosPilates() + 1);
+                    if (u.getCreditosPilatesVencen() != null) {
+                        u.setCreditosPilatesVencen(u.getCreditosPilatesVencen().plusDays(1));
+                    }
+                }
+                usuarioRepository.save(u);
+
+                // Enviar correo después de que la transacción confirme
+                final Usuario uFinal = u;
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        notificacionService.enviarCancelacionClase(
+                                uFinal, clase.getTipo(), fecha, clase.getHora(), instructor);
+                    }
+                });
+            }
+        }
+
+        return confirmadas.size();
     }
 
     private ReservacionDTO toDTO(Reservacion r) {

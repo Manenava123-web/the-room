@@ -1786,23 +1786,34 @@ input::placeholder{color:var(--stone-pale)}
 /* Pill en el calendario — reutiliza admin-pill pero sin botones de acción */
 .esp-pill{cursor:pointer;gap:4px}
 .esp-pill:hover{opacity:.85}
-.esp-pill.esp-pill-past{cursor:default;pointer-events:none}
+.esp-pill.esp-pill-past{cursor:pointer}
 .esp-cupo-line{font-size:11px;font-weight:600;margin-top:2px}
 .esp-cupo-ok{color:#7ddb9f}
 .esp-cupo-casi{color:#ffd27a}
 .esp-cupo-llena{color:#ff9f9f}
 .esp-ver-label{font-size:9px;letter-spacing:.07em;text-transform:uppercase;opacity:.65;margin-top:auto}
 
-/* ── Botón volver ── */
+/* ── Topbar del detalle (volver + cancelar clase) ── */
+.esp-detail-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
 .esp-back-btn{
   display:inline-flex;align-items:center;gap:6px;
-  margin-bottom:16px;
   padding:6px 14px;
   border:1.5px solid var(--border-dark);border-radius:6px;
   background:transparent;font-family:var(--ff-sans);font-size:12px;
   color:var(--stone);cursor:pointer;transition:all .15s;
 }
 .esp-back-btn:hover{border-color:var(--accent);color:var(--accent-dark)}
+.esp-cancelar-clase-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;
+  border:1.5px solid var(--danger);border-radius:6px;
+  background:transparent;font-family:var(--ff-sans);font-size:12px;
+  color:var(--danger);cursor:pointer;transition:all .15s;
+}
+.esp-cancelar-clase-btn:hover{background:var(--danger);color:#fff}
 
 /* ── Cabecera del detalle ── */
 .esp-detail-header{
