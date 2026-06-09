@@ -2656,12 +2656,16 @@ let _historialPeriodo = 'dia';
 let _historialData    = null;
 let _histBuscaQ       = '';
 let _histPageLinea    = 0;
+let _histPagePaypal   = 0;
 let _histPageEfectivo = 0;
 
 async function openHistorial() {
   document.getElementById('historialOverlay').classList.add('show');
   _historialPeriodo = 'dia';
   _histBuscaQ = '';
+  _histPageLinea = 0;
+  _histPagePaypal = 0;
+  _histPageEfectivo = 0;
   document.getElementById('historialBuscar').value = '';
   document.querySelectorAll('#historialPills .ec-pill').forEach((b,i) => b.classList.toggle('active', i === 0));
   await _cargarHistorial();
@@ -2670,6 +2674,9 @@ async function openHistorial() {
 function setHistorialPeriodo(periodo, btn) {
   _historialPeriodo = periodo;
   _histBuscaQ = '';
+  _histPageLinea = 0;
+  _histPagePaypal = 0;
+  _histPageEfectivo = 0;
   document.getElementById('historialBuscar').value = '';
   document.querySelectorAll('#historialPills .ec-pill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -2677,9 +2684,10 @@ function setHistorialPeriodo(periodo, btn) {
 }
 
 function _filtrarHistorial() {
-  _histBuscaQ = document.getElementById('historialBuscar').value.trim().toLowerCase();
+  _histBuscaQ = document.getElementById('historialBuscar').value.trim();
   _histPageLinea = 0;
   _histPageEfectivo = 0;
+  _histPagePaypal = 0;
   _renderHistorialTablas();
 }
 
@@ -2743,11 +2751,12 @@ function _renderHistorial(data) {
 function _renderHistorialTablas() {
   if (!_historialData) return;
   const { historial } = _historialData;
-  const q = _histBuscaQ;
+  const _norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const nq = _norm(_histBuscaQ);
 
-  const match = p => !q ||
-    p.usuarioNombre.toLowerCase().includes(q) ||
-    p.usuarioEmail.toLowerCase().includes(q);
+  const match = p => !nq ||
+    _norm(p.usuarioNombre).includes(nq) ||
+    _norm(p.usuarioEmail).includes(nq);
 
   const enLinea    = historial.filter(p => p.metodo === 'TARJETA'   && match(p));
   const enEfectivo = historial.filter(p => p.metodo === 'EFECTIVO'  && match(p));
@@ -2760,7 +2769,7 @@ function _renderHistorialTablas() {
     footer.textContent = '';
     return;
   }
-  if (q && !enLinea.length && !enEfectivo.length) {
+  if (nq && !enLinea.length && !enEfectivo.length) {
     body.innerHTML   = '<p style="text-align:center;padding:32px;color:var(--stone)">Sin resultados para esa búsqueda.</p>';
     footer.textContent = '';
     return;
@@ -2826,11 +2835,16 @@ function _renderHistorialTablas() {
     </div>`;
 
   const total = enLinea.length + enEfectivo.length;
-  footer.textContent = q ? `${total} resultado${total !== 1 ? 's' : ''} para "${_histBuscaQ}"` : '';
+  footer.textContent = nq ? `${total} resultado${total !== 1 ? 's' : ''} para "${_histBuscaQ}"` : '';
 }
 
 function _setHistPageLinea(page) {
   _histPageLinea = Math.max(0, page);
+  _renderHistorialTablas();
+}
+
+function _setHistPagePaypal(page) {
+  _histPagePaypal = Math.max(0, page);
   _renderHistorialTablas();
 }
 

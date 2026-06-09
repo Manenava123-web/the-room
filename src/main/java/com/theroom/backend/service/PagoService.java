@@ -301,6 +301,7 @@ public class PagoService {
         LocalDateTime desde = switch (periodo) {
             case "semana" -> ahora.with(DayOfWeek.MONDAY).toLocalDate().atStartOfDay();
             case "mes"    -> ahora.withDayOfMonth(1).toLocalDate().atStartOfDay();
+            case "todo"   -> ahora.minusMonths(3).toLocalDate().atStartOfDay();
             default       -> ahora.toLocalDate().atStartOfDay();
         };
 
