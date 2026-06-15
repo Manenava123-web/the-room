@@ -21,6 +21,9 @@ public interface ReservacionRepository extends JpaRepository<Reservacion, Long> 
     boolean existsByUsuarioIdAndClaseIdAndFechaAndEstado(
             Long usuarioId, Long claseId, LocalDate fecha, EstadoReservacion estado);
 
+    boolean existsByUsuarioIdAndClaseIdAndFechaAndEstadoAndNombreInvitadoIsNull(
+            Long usuarioId, Long claseId, LocalDate fecha, EstadoReservacion estado);
+
     @Query("SELECT COUNT(r) FROM Reservacion r WHERE r.clase.id = :claseId AND r.fecha = :fecha AND r.estado = 'CONFIRMADA'")
     int countConfirmadasByClaseAndFecha(@Param("claseId") Long claseId, @Param("fecha") LocalDate fecha);
 

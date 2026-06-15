@@ -597,6 +597,25 @@ input::placeholder{color:var(--stone-pale)}
   color:var(--stone);
   margin-top:2px;
 }
+.resv-invitado{
+  font-family:var(--ff-sans);
+  font-size:11px;
+  color:var(--stone);
+  margin-top:3px;
+  font-style:italic;
+}
+.confirm-invitado-toggle{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-family:var(--ff-sans);
+  font-size:13px;
+  color:var(--black);
+  cursor:pointer;
+}
+.confirm-invitado-toggle input[type="checkbox"]{
+  width:16px;height:16px;cursor:pointer;accent-color:var(--black);
+}
 .resv-cancel{
   flex-shrink:0;
   background:none;

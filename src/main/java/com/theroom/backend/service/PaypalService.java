@@ -1,10 +1,12 @@
 package com.theroom.backend.service;
 
 import com.theroom.backend.dto.PagoResponse;
+import com.theroom.backend.entity.Pago;
 import com.theroom.backend.entity.Paquete;
 import com.theroom.backend.entity.Usuario;
 import com.theroom.backend.enums.TipoDisciplina;
 import com.theroom.backend.exception.AppException;
+import com.theroom.backend.repository.PagoRepository;
 import com.theroom.backend.repository.PaqueteRepository;
 import com.theroom.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class PaypalService {
     private final RestTemplate restTemplate;
     private final PaqueteRepository paqueteRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PagoRepository pagoRepository;
     private final NotificacionService notificacionService;
 
     @Value("${paypal.client-id:}")
@@ -157,6 +160,19 @@ public class PaypalService {
 
         aplicarCreditos(usuario, paquete);
         usuarioRepository.save(usuario);
+
+        pagoRepository.save(Pago.builder()
+                .usuario(usuario)
+                .paquete(paquete)
+                .usuarioNombre(usuario.getNombre() + " " + usuario.getApellido())
+                .usuarioEmail(usuario.getEmail())
+                .paqueteNombre(paquete.getNombre())
+                .disciplina(paquete.getDisciplina())
+                .monto(paquete.getPrecio())
+                .metodo("PAYPAL")
+                .transaccionId(orderId)
+                .clasesAgregadas(paquete.getNumClases())
+                .build());
 
         notificacionService.enviarConfirmacion(usuario, paquete, orderId, "PayPal");
 

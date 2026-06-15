@@ -796,6 +796,13 @@
       <input type="hidden" id="adminClienteId"/>
       <div class="admin-creditos-badge" id="adminCreditosBadge" style="margin-top:6px"></div>
     </div>
+    <div class="form-group" id="confirmInvitadoWrap" style="display:none;margin-bottom:12px">
+      <label class="confirm-invitado-toggle">
+        <input type="checkbox" id="confirmEsInvitado" onchange="document.getElementById('confirmNombreInvitado').style.display=this.checked?'block':'none'">
+        Reservar para un amig@
+      </label>
+      <input type="text" id="confirmNombreInvitado" class="form-input" placeholder="Nombre completo del amig@" style="display:none;margin-top:8px" maxlength="100"/>
+    </div>
     <div class="confirm-actions">
       <button class="btn-outline-dark" onclick="closeConfirm()">Cancelar</button>
       <button class="btn-submit" id="confirmBtn" onclick="doConfirmReservacion()">Confirmar lugar</button>

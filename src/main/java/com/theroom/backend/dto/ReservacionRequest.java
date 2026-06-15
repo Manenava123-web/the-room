@@ -17,4 +17,6 @@ public class ReservacionRequest {
     private LocalDate fecha;
 
     private Integer lugarNumero;
+
+    private String nombreInvitado;
 }

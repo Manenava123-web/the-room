@@ -457,6 +457,17 @@ async function abrirConfirmacion(cls, dayIdx, lugarNumero = null) {
 
   // Si es admin → mostrar selector buscable de cliente
   const adminWrap = document.getElementById('adminClienteWrap');
+  const invitadoWrap = document.getElementById('confirmInvitadoWrap');
+
+  // Resetear toggle de invitado en ambos roles
+  if (invitadoWrap) {
+    invitadoWrap.style.display = 'block';
+    const chk = document.getElementById('confirmEsInvitado');
+    const inp = document.getElementById('confirmNombreInvitado');
+    if (chk) chk.checked = false;
+    if (inp) { inp.value = ''; inp.style.display = 'none'; }
+  }
+
   if (isAdmin()) {
     adminWrap.style.display = 'block';
     resetClienteSearch();
@@ -482,13 +493,22 @@ async function doConfirmReservacion() {
   if (!pendingReservacion) return;
 
   let body, endpoint;
+  const chk = document.getElementById('confirmEsInvitado');
+  const nombreInvitado = chk?.checked
+    ? (document.getElementById('confirmNombreInvitado')?.value?.trim() || '')
+    : '';
+  if (chk?.checked && !nombreInvitado) {
+    showToast('Falta el nombre', 'Escribe el nombre del amig@ para continuar.');
+    return;
+  }
+
   if (isAdmin()) {
     const usuarioId = document.getElementById('adminClienteId').value;
     if (!usuarioId) { showToast('Selecciona un cliente', 'Debes elegir a quién asignar la reservación.'); return; }
-    body     = { ...pendingReservacion, usuarioId: parseInt(usuarioId) };
+    body     = { ...pendingReservacion, usuarioId: parseInt(usuarioId), ...(nombreInvitado ? { nombreInvitado } : {}) };
     endpoint = '/admin/reservaciones';
   } else {
-    body     = pendingReservacion;
+    body     = nombreInvitado ? { ...pendingReservacion, nombreInvitado } : pendingReservacion;
     endpoint = '/reservaciones';
   }
 
@@ -502,7 +522,9 @@ async function doConfirmReservacion() {
     buildAgenda();
     loadCreditos();
   } catch(e) {
-    if (isAdmin()) {
+    if (e.message.includes('clase de visita')) {
+      showToast('Se requiere clase de visita', e.message);
+    } else if (isAdmin()) {
       showToast('Sin créditos disponibles', e.message);
     } else if (e.message.includes('Sin clases de Indoor Cycling')) {
       closeConfirm();
@@ -1025,6 +1047,7 @@ async function openMisReservaciones() {
           <div class="resv-info">
             <div class="resv-date">${formatDate(r.fecha)}</div>
             <div class="resv-hora">${r.hora.replace(/^0/,'')} · ${r.instructor}</div>
+            ${r.nombreInvitado ? `<div class="resv-invitado">Invitad@: ${r.nombreInvitado}</div>` : ''}
             ${pasado ? '<div class="resv-estado pasado">PASADO</div>' : ''}
           </div>
           ${puedeCancelar ? `<button class="resv-cancel" onclick="cancelarReservacion(${r.id}, false)">Cancelar</button>` : ''}
@@ -1162,6 +1185,7 @@ function _renderReservacionesAdmin(data, clienteNombre) {
       <div class="resv-info">
         <div class="resv-date">${formatDate(r.fecha)} · ${r.hora.replace(/^0/,'')} · ${r.instructor}</div>
         <div class="resv-hora resv-usuario">${r.usuarioNombre} <span class="resv-email">${r.usuarioEmail}</span></div>
+        ${r.nombreInvitado ? `<div class="resv-invitado">Invitad@: ${r.nombreInvitado}</div>` : ''}
         <div class="resv-estado ${estadoClass}">${estadoLabel}</div>
       </div>
       ${puedeCancelar ? `<button class="resv-cancel" onclick="cancelarReservacion(${r.id}, true)">Cancelar</button>` : ''}

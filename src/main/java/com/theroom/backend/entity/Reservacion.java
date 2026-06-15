@@ -41,6 +41,9 @@ public class Reservacion {
     @Column(name = "lugar_numero")
     private Integer lugarNumero;
 
+    @Column(name = "nombre_invitado", length = 100)
+    private String nombreInvitado;
+
     @PrePersist
     protected void onCreate() {
         fechaCreacion = LocalDateTime.now();
