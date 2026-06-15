@@ -23,4 +23,5 @@ public class ReservacionAdminDTO {
     private String usuarioNombre;
     private String usuarioEmail;
     private Integer lugarNumero;
+    private String nombreInvitado;
 }

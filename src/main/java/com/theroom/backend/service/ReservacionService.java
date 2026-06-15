@@ -15,6 +15,7 @@ import com.theroom.backend.enums.TipoDisciplina;
 import com.theroom.backend.enums.RolUsuario;
 import com.theroom.backend.exception.AppException;
 import com.theroom.backend.repository.ClaseRepository;
+import com.theroom.backend.repository.PagoRepository;
 import com.theroom.backend.repository.ReservacionRepository;
 import com.theroom.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class ReservacionService {
     private final ReservacionRepository reservacionRepository;
     private final ClaseRepository claseRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PagoRepository pagoRepository;
     private final NotificacionService notificacionService;
 
     @Value("${app.cycling.limite-mensual:900}")
@@ -66,11 +68,14 @@ public class ReservacionService {
 
         validarLimiteMensual(clase, request.getFecha());
 
-        boolean yaReservado = reservacionRepository.existsByUsuarioIdAndClaseIdAndFechaAndEstado(
-                usuarioId, clase.getId(), request.getFecha(), EstadoReservacion.CONFIRMADA);
-
-        if (yaReservado) {
-            throw new AppException("Ya tienes una reservación para esta clase en esa fecha", HttpStatus.CONFLICT);
+        boolean esInvitado = request.getNombreInvitado() != null && !request.getNombreInvitado().isBlank();
+        if (!esInvitado) {
+            boolean yaReservado = reservacionRepository
+                    .existsByUsuarioIdAndClaseIdAndFechaAndEstadoAndNombreInvitadoIsNull(
+                            usuarioId, clase.getId(), request.getFecha(), EstadoReservacion.CONFIRMADA);
+            if (yaReservado) {
+                throw new AppException("Ya tienes una reservación para esta clase en esa fecha", HttpStatus.CONFLICT);
+            }
         }
 
         Usuario usuario = usuarioRepository.findById(usuarioId)
@@ -78,6 +83,9 @@ public class ReservacionService {
 
         if (usuario.getRol() == RolUsuario.CLIENTE) {
             validarCreditos(usuario, clase);
+            if (esInvitado) {
+                validarClaseDeVisitaPagada(usuarioId, clase.getTipo().getDisciplina());
+            }
         }
 
         if (request.getLugarNumero() != null &&
@@ -86,12 +94,15 @@ public class ReservacionService {
             throw new AppException("Ese lugar ya está ocupado", HttpStatus.CONFLICT);
         }
 
+        String nombreInvitado = esInvitado ? request.getNombreInvitado().trim() : null;
+
         Reservacion reservacion = Reservacion.builder()
                 .usuario(usuario)
                 .clase(clase)
                 .fecha(request.getFecha())
                 .estado(EstadoReservacion.CONFIRMADA)
                 .lugarNumero(request.getLugarNumero())
+                .nombreInvitado(nombreInvitado)
                 .build();
 
         reservacionRepository.save(reservacion);
@@ -188,15 +199,21 @@ public class ReservacionService {
         Usuario usuario = usuarioRepository.findById(request.getUsuarioId())
                 .orElseThrow(() -> new AppException("Usuario no encontrado", HttpStatus.NOT_FOUND));
 
-        boolean yaReservado = reservacionRepository.existsByUsuarioIdAndClaseIdAndFechaAndEstado(
-                usuario.getId(), clase.getId(), request.getFecha(), EstadoReservacion.CONFIRMADA);
-
-        if (yaReservado) {
-            throw new AppException("El usuario ya tiene una reservación para esta clase en esa fecha", HttpStatus.CONFLICT);
+        boolean esInvitadoAdmin = request.getNombreInvitado() != null && !request.getNombreInvitado().isBlank();
+        if (!esInvitadoAdmin) {
+            boolean yaReservado = reservacionRepository
+                    .existsByUsuarioIdAndClaseIdAndFechaAndEstadoAndNombreInvitadoIsNull(
+                            usuario.getId(), clase.getId(), request.getFecha(), EstadoReservacion.CONFIRMADA);
+            if (yaReservado) {
+                throw new AppException("El usuario ya tiene una reservación para esta clase en esa fecha", HttpStatus.CONFLICT);
+            }
         }
 
         if (usuario.getRol() == RolUsuario.CLIENTE) {
             validarCreditos(usuario, clase);
+            if (esInvitadoAdmin) {
+                validarClaseDeVisitaPagada(usuario.getId(), clase.getTipo().getDisciplina());
+            }
         }
 
         if (request.getLugarNumero() != null &&
@@ -205,12 +222,15 @@ public class ReservacionService {
             throw new AppException("Ese lugar ya está ocupado", HttpStatus.CONFLICT);
         }
 
+        String nombreInvitadoAdmin = esInvitadoAdmin ? request.getNombreInvitado().trim() : null;
+
         Reservacion reservacion = Reservacion.builder()
                 .usuario(usuario)
                 .clase(clase)
                 .fecha(request.getFecha())
                 .estado(EstadoReservacion.CONFIRMADA)
                 .lugarNumero(request.getLugarNumero())
+                .nombreInvitado(nombreInvitadoAdmin)
                 .build();
 
         reservacionRepository.save(reservacion);
@@ -323,6 +343,7 @@ public class ReservacionService {
                 .estado(r.getEstado())
                 .fechaCreacion(r.getFechaCreacion())
                 .lugarNumero(r.getLugarNumero())
+                .nombreInvitado(r.getNombreInvitado())
                 .build();
     }
 
@@ -424,17 +445,29 @@ public class ReservacionService {
     }
 
     private void validarCreditos(Usuario usuario, Clase clase) {
+        LocalDate hoy = LocalDate.now(ZoneId.of("America/Mexico_City"));
         TipoDisciplina disc = clase.getTipo().getDisciplina();
         if (disc == TipoDisciplina.CYCLING) {
-            if (usuario.getCreditosCycling() < 1)
+            LocalDate vence = usuario.getCreditosCyclingVencen();
+            if (usuario.getCreditosCycling() < 1 || vence == null || hoy.isAfter(vence))
                 throw new AppException(
                     "Sin clases de Indoor Cycling disponibles. Adquiere un paquete para continuar.",
                     HttpStatus.PAYMENT_REQUIRED);
         } else {
-            if (usuario.getCreditosPilates() < 1)
+            LocalDate vence = usuario.getCreditosPilatesVencen();
+            if (usuario.getCreditosPilates() < 1 || vence == null || hoy.isAfter(vence))
                 throw new AppException(
                     "Sin clases de Pilates disponibles. Adquiere un paquete para continuar.",
                     HttpStatus.PAYMENT_REQUIRED);
+        }
+    }
+
+    private void validarClaseDeVisitaPagada(Long usuarioId, TipoDisciplina disciplina) {
+        if (!pagoRepository.existsVisitaPagadaPorUsuarioYDisciplina(usuarioId, disciplina)) {
+            String disc = disciplina == TipoDisciplina.CYCLING ? "Indoor Cycling" : "Pilates";
+            throw new AppException(
+                "Para reservar a un amig@ en " + disc + " primero debe pagarse una clase de visita (paquete de 1 clase).",
+                HttpStatus.PAYMENT_REQUIRED);
         }
     }
 
@@ -463,6 +496,7 @@ public class ReservacionService {
                 .usuarioNombre(r.getUsuario().getNombre() + " " + r.getUsuario().getApellido())
                 .usuarioEmail(r.getUsuario().getEmail())
                 .lugarNumero(r.getLugarNumero())
+                .nombreInvitado(r.getNombreInvitado())
                 .build();
     }
 }

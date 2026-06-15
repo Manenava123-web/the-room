@@ -19,4 +19,5 @@ public class ReservacionDTO {
     private EstadoReservacion estado;
     private LocalDateTime fechaCreacion;
     private Integer lugarNumero;
+    private String nombreInvitado;
 }

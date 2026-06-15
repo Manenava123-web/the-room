@@ -26,6 +26,10 @@ public class Pago {
     @Column(name = "usuario_email", nullable = false, length = 120)
     private String usuarioEmail;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "paquete_id")
+    private Paquete paquete;
+
     @Column(name = "paquete_nombre", nullable = false, length = 120)
     private String paqueteNombre;
 

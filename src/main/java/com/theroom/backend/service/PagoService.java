@@ -93,6 +93,7 @@ public class PagoService {
 
         pagoRepository.save(Pago.builder()
                 .usuario(usuario)
+                .paquete(paquete)
                 .usuarioNombre(usuario.getNombre() + " " + usuario.getApellido())
                 .usuarioEmail(usuario.getEmail())
                 .paqueteNombre(paquete.getNombre())
@@ -130,6 +131,7 @@ public class PagoService {
 
         pagoRepository.save(Pago.builder()
                 .usuario(usuario)
+                .paquete(paquete)
                 .usuarioNombre(usuario.getNombre() + " " + usuario.getApellido())
                 .usuarioEmail(usuario.getEmail())
                 .paqueteNombre(paquete.getNombre())
