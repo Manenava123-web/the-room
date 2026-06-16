@@ -3223,12 +3223,12 @@ function _renderAdminPilatesMap(cupoTotal, espacios) {
         const rid    = e.reservacionId ?? 0;
         html += `<div class="seat-mat ocupado esp-ocu esp-seat esp-seat-ocu" onclick="_espMostrarTooltip(event,'${nombre}','${email}',${rid})">
           <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
-          <span class="seat-num">Mat ${n}</span>
+          <span class="seat-num">Reformer ${n}</span>
         </div>`;
       } else {
         html += `<div class="seat-mat disponible esp-seat">
           <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
-          <span class="seat-num">Mat ${n}</span>
+          <span class="seat-num">Reformer ${n}</span>
         </div>`;
       }
     }
