@@ -380,7 +380,7 @@ function renderPilatesMap(cupoTotal, ocupados) {
           <div class="seat-mat-rail"></div>
           <div class="seat-mat-rail"></div>
         </div>
-        <span class="seat-num">Mat ${n}</span>
+        <span class="seat-num">Reformer ${n}</span>
       </button>`;
     }
     html += '</div>';
