@@ -2361,7 +2361,8 @@ function _renderEquipoCyclingMap(e) {
       class="seat-bike equipo-seat ${disabled ? 'deshabilitado' : 'disponible'}"
       data-equipo-tipo="${e.tipoClase}"
       data-equipo-num="${n}"
-      onclick="toggleEquipoDeshabilitado('${e.tipoClase}', ${n})"
+      onclick="handleEquipoTap(event, '${e.tipoClase}', ${n})"
+      ontouchend="handleEquipoTap(event, '${e.tipoClase}', ${n})"
       title="${disabled ? 'Dañado / mantenimiento' : 'Disponible'}">
       ${SVG_BIKE}<span class="seat-num">${n}</span>
     </button>`;
@@ -2401,10 +2402,11 @@ function _renderEquipoPilatesMap(e) {
         class="seat-mat equipo-seat ${disabled ? 'deshabilitado' : 'disponible'}"
         data-equipo-tipo="${e.tipoClase}"
         data-equipo-num="${n}"
-        onclick="toggleEquipoDeshabilitado('${e.tipoClase}', ${n})"
+        onclick="handleEquipoTap(event, '${e.tipoClase}', ${n})"
+        ontouchend="handleEquipoTap(event, '${e.tipoClase}', ${n})"
         title="${disabled ? 'Dañado / mantenimiento' : 'Disponible'}">
         <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
-        <span class="seat-num">Mat ${n}</span>
+        <span class="seat-num">Reformer ${n}</span>
       </button>`;
     }
     html += '</div>';
@@ -2421,6 +2423,20 @@ function _getEquipoDeshabilitadosFromMap(tipo) {
 
 function _equipoUnidadLabel(tipo, numero) {
   return `${tipo === 'SPINNING' ? 'Bicicleta' : 'Reformer'} ${numero}`;
+}
+
+let _equipoTapLock = null;
+
+function handleEquipoTap(event, tipo, numero) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const key = `${tipo}-${numero}`;
+  const now = Date.now();
+  if (_equipoTapLock && _equipoTapLock.key === key && now - _equipoTapLock.at < 500) return;
+  _equipoTapLock = { key, at: now };
+
+  toggleEquipoDeshabilitado(tipo, numero);
 }
 
 async function guardarEquipo(tipo) {
@@ -3363,7 +3379,7 @@ function _renderAdminPilatesMap(cupoTotal, espacios) {
       } else if (des) {
         html += `<div class="seat-mat deshabilitado esp-disabled esp-seat">
           <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
-          <span class="seat-num">Mat ${n}</span>
+          <span class="seat-num">Reformer ${n}</span>
         </div>`;
       } else {
         html += `<div class="seat-mat disponible esp-seat">
