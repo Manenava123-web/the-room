@@ -6,6 +6,7 @@ import com.theroom.backend.dto.ReservacionAdminRequest;
 import com.theroom.backend.dto.ReservacionDTO;
 import com.theroom.backend.dto.ReservacionRequest;
 import com.theroom.backend.entity.Clase;
+import com.theroom.backend.entity.EquipoEstudio;
 import com.theroom.backend.entity.Reservacion;
 import com.theroom.backend.entity.Usuario;
 import com.theroom.backend.enums.DiaSemana;
@@ -15,6 +16,7 @@ import com.theroom.backend.enums.TipoDisciplina;
 import com.theroom.backend.enums.RolUsuario;
 import com.theroom.backend.exception.AppException;
 import com.theroom.backend.repository.ClaseRepository;
+import com.theroom.backend.repository.EquipoEstudioRepository;
 import com.theroom.backend.repository.PagoRepository;
 import com.theroom.backend.repository.ReservacionRepository;
 import com.theroom.backend.repository.UsuarioRepository;
@@ -32,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,6 +43,7 @@ public class ReservacionService {
 
     private final ReservacionRepository reservacionRepository;
     private final ClaseRepository claseRepository;
+    private final EquipoEstudioRepository equipoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PagoRepository pagoRepository;
     private final NotificacionService notificacionService;
@@ -61,8 +65,9 @@ public class ReservacionService {
         Clase clase = claseRepository.findByIdForUpdate(request.getClaseId())
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
 
+        Set<Integer> deshabilitados = deshabilitadosPorTipo(clase.getTipo());
         int tomadosEnFecha = reservacionRepository.countConfirmadasByClaseAndFecha(clase.getId(), request.getFecha());
-        if (tomadosEnFecha >= clase.getCupoTotal()) {
+        if (tomadosEnFecha >= capacidadOperativa(clase, deshabilitados)) {
             throw new AppException("La clase está llena", HttpStatus.CONFLICT);
         }
 
@@ -88,10 +93,12 @@ public class ReservacionService {
             }
         }
 
-        if (request.getLugarNumero() != null &&
-            reservacionRepository.existsByClaseIdAndFechaAndLugarNumeroAndEstado(
-                clase.getId(), request.getFecha(), request.getLugarNumero(), EstadoReservacion.CONFIRMADA)) {
-            throw new AppException("Ese lugar ya está ocupado", HttpStatus.CONFLICT);
+        if (request.getLugarNumero() != null) {
+            validarLugarReservable(clase, request.getLugarNumero(), deshabilitados);
+            if (reservacionRepository.existsByClaseIdAndFechaAndLugarNumeroAndEstado(
+                    clase.getId(), request.getFecha(), request.getLugarNumero(), EstadoReservacion.CONFIRMADA)) {
+                throw new AppException("Ese lugar ya está ocupado", HttpStatus.CONFLICT);
+            }
         }
 
         String nombreInvitado = esInvitado ? request.getNombreInvitado().trim() : null;
@@ -189,8 +196,9 @@ public class ReservacionService {
         Clase clase = claseRepository.findByIdForUpdate(request.getClaseId())
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
 
+        Set<Integer> deshabilitados = deshabilitadosPorTipo(clase.getTipo());
         int tomadosEnFechaAdmin = reservacionRepository.countConfirmadasByClaseAndFecha(clase.getId(), request.getFecha());
-        if (tomadosEnFechaAdmin >= clase.getCupoTotal()) {
+        if (tomadosEnFechaAdmin >= capacidadOperativa(clase, deshabilitados)) {
             throw new AppException("La clase está llena", HttpStatus.CONFLICT);
         }
 
@@ -216,10 +224,12 @@ public class ReservacionService {
             }
         }
 
-        if (request.getLugarNumero() != null &&
-            reservacionRepository.existsByClaseIdAndFechaAndLugarNumeroAndEstado(
-                clase.getId(), request.getFecha(), request.getLugarNumero(), EstadoReservacion.CONFIRMADA)) {
-            throw new AppException("Ese lugar ya está ocupado", HttpStatus.CONFLICT);
+        if (request.getLugarNumero() != null) {
+            validarLugarReservable(clase, request.getLugarNumero(), deshabilitados);
+            if (reservacionRepository.existsByClaseIdAndFechaAndLugarNumeroAndEstado(
+                    clase.getId(), request.getFecha(), request.getLugarNumero(), EstadoReservacion.CONFIRMADA)) {
+                throw new AppException("Ese lugar ya está ocupado", HttpStatus.CONFLICT);
+            }
         }
 
         String nombreInvitadoAdmin = esInvitadoAdmin ? request.getNombreInvitado().trim() : null;
@@ -477,6 +487,29 @@ public class ReservacionService {
             usuario.setCreditosCycling(usuario.getCreditosCycling() - 1);
         } else {
             usuario.setCreditosPilates(usuario.getCreditosPilates() - 1);
+        }
+    }
+
+    private Set<Integer> deshabilitadosPorTipo(TipoClase tipo) {
+        return equipoRepository.findById(tipo)
+                .map(EquipoEstudio::getDeshabilitados)
+                .orElse(Set.of());
+    }
+
+    private int capacidadOperativa(Clase clase, Set<Integer> deshabilitados) {
+        long dentroDeRango = deshabilitados.stream()
+                .filter(n -> n >= 1 && n <= clase.getCupoTotal())
+                .count();
+        return Math.max(0, clase.getCupoTotal() - (int) dentroDeRango);
+    }
+
+    private void validarLugarReservable(Clase clase, Integer lugarNumero, Set<Integer> deshabilitados) {
+        if (lugarNumero < 1 || lugarNumero > clase.getCupoTotal()) {
+            throw new AppException("El lugar seleccionado no existe", HttpStatus.BAD_REQUEST);
+        }
+        if (deshabilitados.contains(lugarNumero)) {
+            String equipo = clase.getTipo() == TipoClase.SPINNING ? "bicicleta" : "reformer";
+            throw new AppException("Ese " + equipo + " está deshabilitado por mantenimiento", HttpStatus.CONFLICT);
         }
     }
 

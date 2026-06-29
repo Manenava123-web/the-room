@@ -2,6 +2,7 @@ package com.theroom.backend.repository;
 
 import com.theroom.backend.entity.Reservacion;
 import com.theroom.backend.enums.EstadoReservacion;
+import com.theroom.backend.enums.TipoClase;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,4 +46,17 @@ public interface ReservacionRepository extends JpaRepository<Reservacion, Long> 
 
     @Query("SELECT COUNT(r) FROM Reservacion r WHERE r.clase.tipo = 'PILATES' AND YEAR(r.fecha) = :anio AND MONTH(r.fecha) = :mes AND r.estado = 'CONFIRMADA'")
     int countPilatesConfirmadasEnMes(@Param("anio") int anio, @Param("mes") int mes);
+
+    @Query("""
+            SELECT COUNT(r) > 0
+            FROM Reservacion r
+            WHERE r.clase.tipo = :tipo
+              AND r.lugarNumero IN :lugares
+              AND r.fecha >= :desde
+              AND r.estado = 'CONFIRMADA'
+            """)
+    boolean existsConfirmadaFuturaEnLugares(
+            @Param("tipo") TipoClase tipo,
+            @Param("lugares") List<Integer> lugares,
+            @Param("desde") LocalDate desde);
 }

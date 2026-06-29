@@ -4,6 +4,9 @@ import com.theroom.backend.enums.TipoClase;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "equipo_estudio")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -19,4 +22,13 @@ public class EquipoEstudio {
 
     @Column(nullable = false, length = 80)
     private String nombre;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "equipo_estudio_deshabilitado",
+            joinColumns = @JoinColumn(name = "tipo_clase")
+    )
+    @Column(name = "numero_equipo", nullable = false)
+    @Builder.Default
+    private Set<Integer> deshabilitados = new HashSet<>();
 }

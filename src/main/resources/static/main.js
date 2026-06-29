@@ -311,26 +311,28 @@ async function abrirSeatSelector(cls, dayIdx) {
 
   try {
     const data = await api('GET', `/clases/${cls.id}/lugares?fecha=${fechaStr}`);
-    renderSeatMap(cls.tipo, data.cupoTotal, data.ocupados);
+    renderSeatMap(cls.tipo, data.cupoTotal, data.ocupados, data.deshabilitados || []);
   } catch(e) {
     document.getElementById('seatMapContainer').innerHTML =
       `<p class="resv-empty">${e.message}</p>`;
   }
 }
 
-function renderSeatMap(tipo, cupoTotal, ocupados) {
+function renderSeatMap(tipo, cupoTotal, ocupados, deshabilitados = []) {
   const isSpin = tipo === 'SPINNING';
   document.getElementById('seatMapContainer').innerHTML =
-    isSpin ? renderCyclingMap(cupoTotal, ocupados) : renderPilatesMap(cupoTotal, ocupados);
+    isSpin ? renderCyclingMap(cupoTotal, ocupados, deshabilitados) : renderPilatesMap(cupoTotal, ocupados, deshabilitados);
 }
 
-function renderCyclingMap(cupoTotal, ocupados) {
+function renderCyclingMap(cupoTotal, ocupados, deshabilitados = []) {
   const ROW_SIZE = 8;
 
   function bikeBtn(n) {
     const ocu = ocupados.includes(n);
-    return `<button class="seat-bike ${ocu ? 'ocupado' : 'disponible'}"
-      ${ocu ? 'disabled' : `onclick="selectSeat(${n})"`} id="seat-${n}">
+    const des = deshabilitados.includes(n);
+    const estado = des ? 'deshabilitado' : (ocu ? 'ocupado' : 'disponible');
+    return `<button class="seat-bike ${estado}"
+      ${ocu || des ? 'disabled' : `onclick="selectSeat(${n})"`} id="seat-${n}">
       <svg class="seat-bike-svg" viewBox="0 0 24 24"><path d="M5 20.5A3.5 3.5 0 0 1 1.5 17 3.5 3.5 0 0 1 5 13.5 3.5 3.5 0 0 1 8.5 17 3.5 3.5 0 0 1 5 20.5M5 12A5 5 0 0 0 0 17a5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m9.8-2H19V8h-3.2L13 5.5c-.4-.5-1-.8-1.6-.8-.8 0-1.5.5-1.8 1.2L7.4 11c-.2.5-.4 1-.4 1.5A2.5 2.5 0 0 0 9.5 15H11v5h2v-7H9.5c-.1 0-.2 0-.2-.1l2-4.5L13 11h1.8M19 20.5A3.5 3.5 0 0 1 15.5 17 3.5 3.5 0 0 1 19 13.5 3.5 3.5 0 0 1 22.5 17 3.5 3.5 0 0 1 19 20.5m0-8.5a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-2-4.5a1.5 1.5 0 0 0 1.5 1.5A1.5 1.5 0 0 0 20 7.5 1.5 1.5 0 0 0 18.5 6 1.5 1.5 0 0 0 17 7.5z"/></svg>
       <span class="seat-num">${n}</span>
     </button>`;
@@ -362,7 +364,7 @@ function renderCyclingMap(cupoTotal, ocupados) {
   return html + '</div>';
 }
 
-function renderPilatesMap(cupoTotal, ocupados) {
+function renderPilatesMap(cupoTotal, ocupados, deshabilitados = []) {
   let html = `
     <div class="seat-map">
       <div class="seat-stage">
@@ -370,11 +372,12 @@ function renderPilatesMap(cupoTotal, ocupados) {
       </div>`;
   let seat = 1;
   while (seat <= cupoTotal) {
-    html += `<div class="seat-row">`;
+    html += `<div class="seat-row esp-pilates-row">`;
     for (let i = 0; i < 3 && seat <= cupoTotal; i++) {
-      const n = seat++, ocu = ocupados.includes(n);
-      html += `<button class="seat-mat ${ocu ? 'ocupado' : 'disponible'}"
-        ${ocu ? 'disabled' : `onclick="selectSeat(${n})"`} id="seat-${n}">
+      const n = seat++, ocu = ocupados.includes(n), des = deshabilitados.includes(n);
+      const estado = des ? 'deshabilitado' : (ocu ? 'ocupado' : 'disponible');
+      html += `<button class="seat-mat ${estado}"
+        ${ocu || des ? 'disabled' : `onclick="selectSeat(${n})"`} id="seat-${n}">
         <div class="seat-mat-rails">
           <div class="seat-mat-rail"></div>
           <div class="seat-mat-rail"></div>
@@ -2318,20 +2321,106 @@ async function openEquipo() {
 }
 
 function _renderEquipoList(lista) {
-  const nombres = { SPINNING: 'Indoor Cycling', PILATES: 'Pilates Reformer' };
   document.getElementById('equipoList').innerHTML = lista.map(e => `
     <div class="equipo-row">
-      <div class="equipo-info">
-        <span class="equipo-nombre">${e.nombre}</span>
-        <span class="equipo-clases">${e.clasesAfectadas} clase${e.clasesAfectadas !== 1 ? 's' : ''} activas</span>
+      <div class="equipo-head">
+        <div class="equipo-info">
+          <span class="equipo-nombre">${e.nombre}</span>
+          <span class="equipo-clases">${e.disponibles} de ${e.cantidad} disponibles · ${e.clasesAfectadas} clase${e.clasesAfectadas !== 1 ? 's' : ''} activas</span>
+        </div>
+        <div class="equipo-control">
+          <label class="equipo-label">Cantidad</label>
+          <input type="number" class="equipo-input" id="equipoQty_${e.tipoClase}" value="${e.cantidad}" min="1" max="100">
+          <button class="equipo-btn" onclick="guardarEquipo('${e.tipoClase}')">Guardar</button>
+        </div>
       </div>
-      <div class="equipo-control">
-        <label class="equipo-label">Cantidad</label>
-        <input type="number" class="equipo-input" id="equipoQty_${e.tipoClase}" value="${e.cantidad}" min="1" max="100">
-        <button class="equipo-btn" onclick="guardarEquipo('${e.tipoClase}')">Guardar</button>
+      <div class="equipo-map-wrap">
+        ${_renderEquipoMap(e)}
       </div>
+      <div class="equipo-legend">
+        <span class="seat-legend-item"><span class="seat-dot disponible"></span>Disponible</span>
+        <span class="seat-legend-item"><span class="seat-dot deshabilitado"></span>Dañado / mantenimiento</span>
+      </div>
+      <span class="equipo-hint">Toca una bicicleta o reformer para marcarlo como dañado o volverlo a habilitar.</span>
     </div>
   `).join('');
+}
+
+function _renderEquipoMap(e) {
+  return e.tipoClase === 'SPINNING' ? _renderEquipoCyclingMap(e) : _renderEquipoPilatesMap(e);
+}
+
+function _renderEquipoCyclingMap(e) {
+  const deshabilitados = e.deshabilitados || [];
+  const ROW_SIZE = 8;
+  const SVG_BIKE = `<svg class="seat-bike-svg" viewBox="0 0 24 24"><path d="M5 20.5A3.5 3.5 0 0 1 1.5 17 3.5 3.5 0 0 1 5 13.5 3.5 3.5 0 0 1 8.5 17 3.5 3.5 0 0 1 5 20.5M5 12A5 5 0 0 0 0 17a5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m9.8-2H19V8h-3.2L13 5.5c-.4-.5-1-.8-1.6-.8-.8 0-1.5.5-1.8 1.2L7.4 11c-.2.5-.4 1-.4 1.5A2.5 2.5 0 0 0 9.5 15H11v5h2v-7H9.5c-.1 0-.2 0-.2-.1l2-4.5L13 11h1.8M19 20.5A3.5 3.5 0 0 1 15.5 17 3.5 3.5 0 0 1 19 13.5 3.5 3.5 0 0 1 22.5 17 3.5 3.5 0 0 1 19 20.5m0-8.5a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-2-4.5a1.5 1.5 0 0 0 1.5 1.5A1.5 1.5 0 0 0 20 7.5 1.5 1.5 0 0 0 18.5 6 1.5 1.5 0 0 0 17 7.5z"/></svg>`;
+
+  function bikeBtn(n) {
+    const disabled = deshabilitados.includes(n);
+    return `<button type="button"
+      class="seat-bike equipo-seat ${disabled ? 'deshabilitado' : 'disponible'}"
+      data-equipo-tipo="${e.tipoClase}"
+      data-equipo-num="${n}"
+      onclick="toggleEquipoDeshabilitado('${e.tipoClase}', ${n})"
+      title="${disabled ? 'Dañado / mantenimiento' : 'Disponible'}">
+      ${SVG_BIKE}<span class="seat-num">${n}</span>
+    </button>`;
+  }
+
+  const frontEnd = Math.min(ROW_SIZE, e.cantidad);
+  let html = `<div class="seat-map equipo-map">
+    <div class="seat-stage"><div class="seat-stage-label">Instructor · Pantalla</div></div>
+    <div class="seat-zone-label">Frente</div>
+    <div class="seat-row">`;
+  for (let n = 1; n <= frontEnd; n++) html += bikeBtn(n);
+  html += '</div>';
+
+  if (e.cantidad > ROW_SIZE) {
+    html += '<div class="seat-zone-divider">Atrás</div>';
+    let seat = ROW_SIZE + 1;
+    while (seat <= e.cantidad) {
+      html += '<div class="seat-row">';
+      for (let i = 0; i < ROW_SIZE && seat <= e.cantidad; i++) html += bikeBtn(seat++);
+      html += '</div>';
+    }
+  }
+  return html + '</div>';
+}
+
+function _renderEquipoPilatesMap(e) {
+  const deshabilitados = e.deshabilitados || [];
+  let html = `<div class="seat-map equipo-map">
+    <div class="seat-stage"><div class="seat-stage-label">Instructor · Espejo</div></div>`;
+  let seat = 1;
+  while (seat <= e.cantidad) {
+    html += '<div class="seat-row esp-pilates-row">';
+    for (let i = 0; i < 3 && seat <= e.cantidad; i++) {
+      const n = seat++;
+      const disabled = deshabilitados.includes(n);
+      html += `<button type="button"
+        class="seat-mat equipo-seat ${disabled ? 'deshabilitado' : 'disponible'}"
+        data-equipo-tipo="${e.tipoClase}"
+        data-equipo-num="${n}"
+        onclick="toggleEquipoDeshabilitado('${e.tipoClase}', ${n})"
+        title="${disabled ? 'Dañado / mantenimiento' : 'Disponible'}">
+        <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
+        <span class="seat-num">Mat ${n}</span>
+      </button>`;
+    }
+    html += '</div>';
+  }
+  return html + '</div>';
+}
+
+function _getEquipoDeshabilitadosFromMap(tipo) {
+  const selector = `[data-equipo-tipo="${tipo}"].equipo-seat`;
+  return [...document.querySelectorAll(selector)]
+    .filter(btn => btn.classList.contains('deshabilitado'))
+    .map(btn => parseInt(btn.dataset.equipoNum));
+}
+
+function _equipoUnidadLabel(tipo, numero) {
+  return `${tipo === 'SPINNING' ? 'Bicicleta' : 'Reformer'} ${numero}`;
 }
 
 async function guardarEquipo(tipo) {
@@ -2345,7 +2434,47 @@ async function guardarEquipo(tipo) {
   try {
     const result = await api('PUT', `/admin/equipo/${tipo}`, { cantidad });
     showToast('Equipo actualizado',
-      `${result.nombre}: ${result.cantidad} unidades. ${result.clasesAfectadas} clase${result.clasesAfectadas !== 1 ? 's' : ''} actualizada${result.clasesAfectadas !== 1 ? 's' : ''}.`,
+      `${result.nombre}: ${result.disponibles} de ${result.cantidad} disponibles. ${result.clasesAfectadas} clase${result.clasesAfectadas !== 1 ? 's' : ''} actualizada${result.clasesAfectadas !== 1 ? 's' : ''}.`,
+      'success');
+    const lista = await api('GET', '/admin/equipo');
+    _renderEquipoList(lista);
+    buildAgenda();
+    loadCapacidad();
+  } catch(e) {
+    document.getElementById('equipoAlert').textContent = e.message;
+  }
+}
+
+function toggleEquipoDeshabilitado(tipo, numero) {
+  const actuales = _getEquipoDeshabilitadosFromMap(tipo);
+  const estaDeshabilitado = actuales.includes(numero);
+  const unidad = _equipoUnidadLabel(tipo, numero);
+  const accion = estaDeshabilitado ? 'habilitar' : 'deshabilitar';
+  const detalle = estaDeshabilitado
+    ? `${unidad} volverá a estar disponible para reservar en las clases de esta disciplina.`
+    : `${unidad} quedará marcada como dañada / mantenimiento y se bloqueará en el mapa de reservaciones.`;
+
+  showConfirm(
+    `${estaDeshabilitado ? 'Habilitar' : 'Deshabilitar'} equipo`,
+    `¿Deseas ${accion} ${unidad}?\n\n${detalle}`,
+    estaDeshabilitado ? 'Sí, habilitar' : 'Sí, deshabilitar',
+    estaDeshabilitado ? '' : 'btn-danger',
+    () => _doToggleEquipoDeshabilitado(tipo, numero, actuales)
+  );
+}
+
+async function _doToggleEquipoDeshabilitado(tipo, numero, actuales) {
+  const deshabilitados = actuales.includes(numero)
+    ? actuales.filter(n => n !== numero)
+    : [...actuales, numero].sort((a, b) => a - b);
+
+  document.getElementById('equipoAlert').textContent = '';
+  try {
+    const result = await api('PUT', `/admin/equipo/${tipo}/deshabilitados`, { deshabilitados });
+    const lista = await api('GET', '/admin/equipo');
+    _renderEquipoList(lista);
+    showToast('Equipo actualizado',
+      `${result.nombre}: ${result.deshabilitados.length} unidad${result.deshabilitados.length !== 1 ? 'es' : ''} en mantenimiento.`,
       'success');
     buildAgenda();
     loadCapacidad();
@@ -3087,6 +3216,7 @@ function _espAbrirDetalle(key) {
     <div class="esp-detail-legend">
       ${ocupadoHint}
       <span class="esp-legend-item"><span class="esp-legend-dot esp-ld-libre"></span>Libre</span>
+      <span class="esp-legend-item"><span class="esp-legend-dot esp-ld-disabled"></span>Dañado / mantenimiento</span>
     </div>`;
 
   const mapaHtml = c.tipo === 'SPINNING'
@@ -3175,12 +3305,17 @@ function _renderAdminCyclingMap(cupoTotal, espacios) {
   const SVG_BIKE = `<svg class="seat-bike-svg" viewBox="0 0 24 24"><path d="M5 20.5A3.5 3.5 0 0 1 1.5 17 3.5 3.5 0 0 1 5 13.5 3.5 3.5 0 0 1 8.5 17 3.5 3.5 0 0 1 5 20.5M5 12A5 5 0 0 0 0 17a5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m9.8-2H19V8h-3.2L13 5.5c-.4-.5-1-.8-1.6-.8-.8 0-1.5.5-1.8 1.2L7.4 11c-.2.5-.4 1-.4 1.5A2.5 2.5 0 0 0 9.5 15H11v5h2v-7H9.5c-.1 0-.2 0-.2-.1l2-4.5L13 11h1.8M19 20.5A3.5 3.5 0 0 1 15.5 17 3.5 3.5 0 0 1 19 13.5 3.5 3.5 0 0 1 22.5 17 3.5 3.5 0 0 1 19 20.5m0-8.5a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-2-4.5a1.5 1.5 0 0 0 1.5 1.5A1.5 1.5 0 0 0 20 7.5 1.5 1.5 0 0 0 18.5 6 1.5 1.5 0 0 0 17 7.5z"/></svg>`;
 
   function bikeBtn(n) {
-    const e = mapa[n]; const ocu = e && e.ocupado;
+    const e = mapa[n]; const ocu = e && e.ocupado; const des = e && e.deshabilitado;
     if (ocu) {
       const nombre = (e.usuarioNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const email  = (e.usuarioEmail  || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const rid    = e.reservacionId ?? 0;
       return `<div class="seat-bike ocupado esp-ocu esp-seat esp-seat-ocu" onclick="_espMostrarTooltip(event,'${nombre}','${email}',${rid})">
+        ${SVG_BIKE}<span class="seat-num">${n}</span>
+      </div>`;
+    }
+    if (des) {
+      return `<div class="seat-bike deshabilitado esp-disabled esp-seat">
         ${SVG_BIKE}<span class="seat-num">${n}</span>
       </div>`;
     }
@@ -3216,7 +3351,7 @@ function _renderAdminPilatesMap(cupoTotal, espacios) {
   while (seat <= cupoTotal) {
     html += '<div class="seat-row esp-pilates-row">';
     for (let i = 0; i < 3 && seat <= cupoTotal; i++) {
-      const n = seat++; const e = mapa[n]; const ocu = e && e.ocupado;
+      const n = seat++; const e = mapa[n]; const ocu = e && e.ocupado; const des = e && e.deshabilitado;
       if (ocu) {
         const nombre = (e.usuarioNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const email  = (e.usuarioEmail  || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -3224,6 +3359,11 @@ function _renderAdminPilatesMap(cupoTotal, espacios) {
         html += `<div class="seat-mat ocupado esp-ocu esp-seat esp-seat-ocu" onclick="_espMostrarTooltip(event,'${nombre}','${email}',${rid})">
           <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
           <span class="seat-num">Reformer ${n}</span>
+        </div>`;
+      } else if (des) {
+        html += `<div class="seat-mat deshabilitado esp-disabled esp-seat">
+          <div class="seat-mat-rails"><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div><div class="seat-mat-rail"></div></div>
+          <span class="seat-num">Mat ${n}</span>
         </div>`;
       } else {
         html += `<div class="seat-mat disponible esp-seat">

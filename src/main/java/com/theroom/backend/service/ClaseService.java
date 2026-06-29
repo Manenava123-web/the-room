@@ -27,10 +27,13 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -67,12 +70,7 @@ public class ClaseService {
 
     public List<EquipoEstudioDTO> obtenerEquipo() {
         return equipoRepository.findAll().stream()
-                .map(e -> EquipoEstudioDTO.builder()
-                        .tipoClase(e.getTipoClase().name())
-                        .nombre(e.getNombre())
-                        .cantidad(e.getCantidad())
-                        .clasesAfectadas((int) claseRepository.findByTipoAndActivoTrue(e.getTipoClase()).stream().count())
-                        .build())
+                .map(this::toEquipoDTO)
                 .collect(Collectors.toList());
     }
 
@@ -87,12 +85,41 @@ public class ClaseService {
         clases.forEach(c -> c.setCupoTotal(nuevaCantidad));
         claseRepository.saveAll(clases);
 
-        return EquipoEstudioDTO.builder()
-                .tipoClase(tipo.name())
-                .nombre(equipo.getNombre())
-                .cantidad(nuevaCantidad)
-                .clasesAfectadas(clases.size())
-                .build();
+        equipo.setDeshabilitados(equipo.getDeshabilitados().stream()
+                .filter(n -> n <= nuevaCantidad)
+                .collect(Collectors.toCollection(HashSet::new)));
+        equipoRepository.save(equipo);
+
+        return toEquipoDTO(equipo, clases.size());
+    }
+
+    @Transactional
+    public EquipoEstudioDTO actualizarEquipoDeshabilitado(TipoClase tipo, List<Integer> deshabilitados) {
+        EquipoEstudio equipo = equipoRepository.findById(tipo)
+                .orElseThrow(() -> new AppException("Tipo de clase no encontrado", HttpStatus.NOT_FOUND));
+
+        Set<Integer> normalizados = deshabilitados == null
+                ? Collections.emptySet()
+                : deshabilitados.stream()
+                        .filter(n -> n != null)
+                        .collect(Collectors.toCollection(HashSet::new));
+
+        normalizados.forEach(n -> {
+            if (n < 1 || n > equipo.getCantidad()) {
+                throw new AppException("El equipo " + n + " no existe para " + equipo.getNombre(), HttpStatus.BAD_REQUEST);
+            }
+        });
+
+        if (!normalizados.isEmpty() && reservacionRepository.existsConfirmadaFuturaEnLugares(
+                tipo,
+                new ArrayList<>(normalizados),
+                LocalDate.now(ZoneId.of("America/Mexico_City")))) {
+            throw new AppException("No puedes deshabilitar un equipo con reservaciones futuras confirmadas. Libera o mueve esas reservaciones primero.", HttpStatus.CONFLICT);
+        }
+
+        equipo.setDeshabilitados(normalizados);
+        equipoRepository.save(equipo);
+        return toEquipoDTO(equipo);
     }
 
     public List<ClaseDTO> obtenerTodas() {
@@ -127,7 +154,7 @@ public class ClaseService {
                 .map(c -> {
                     LocalDate fecha = fechaPorDia.get(c.getDiaSemana());
                     int tomados = reservacionRepository.countConfirmadasByClaseAndFecha(c.getId(), fecha);
-                    int disponibles = Math.max(0, c.getCupoTotal() - tomados);
+                    int disponibles = Math.max(0, capacidadOperativa(c) - tomados);
                     return ClaseDTO.builder()
                             .id(c.getId())
                             .tipo(c.getTipo())
@@ -234,7 +261,10 @@ public class ClaseService {
         Clase clase = claseRepository.findById(claseId)
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
         java.util.List<Integer> ocupados = reservacionRepository.findLugaresOcupadosByClaseAndFecha(claseId, fecha);
-        return java.util.Map.of("cupoTotal", clase.getCupoTotal(), "ocupados", ocupados);
+        return java.util.Map.of(
+                "cupoTotal", clase.getCupoTotal(),
+                "ocupados", ocupados,
+                "deshabilitados", deshabilitadosPorTipo(clase.getTipo()));
     }
 
     // ── Admin: diagrama de espacios por semana ─────────────────
@@ -260,12 +290,14 @@ public class ClaseService {
                             .filter(r -> r.getLugarNumero() != null)
                             .collect(Collectors.toMap(Reservacion::getLugarNumero, r -> r));
 
+                    Set<Integer> deshabilitados = deshabilitadosPorTipo(c.getTipo());
                     List<ClaseEspaciosAdminDTO.EspacioDTO> espacios = new ArrayList<>();
                     for (int n = 1; n <= c.getCupoTotal(); n++) {
                         Reservacion r = porLugar.get(n);
                         espacios.add(ClaseEspaciosAdminDTO.EspacioDTO.builder()
                                 .numero(n)
                                 .ocupado(r != null)
+                                .deshabilitado(deshabilitados.contains(n))
                                 .reservacionId(r != null ? r.getId() : null)
                                 .usuarioNombre(r != null ? r.getUsuario().getNombre() + " " + r.getUsuario().getApellido() : null)
                                 .usuarioEmail(r != null ? r.getUsuario().getEmail() : null)
@@ -292,7 +324,7 @@ public class ClaseService {
                             .collect(Collectors.toList());
 
                     int tomados = reservas.size();
-                    int disponibles = Math.max(0, c.getCupoTotal() - tomados);
+                    int disponibles = Math.max(0, capacidadOperativa(c, deshabilitados) - tomados);
 
                     return ClaseEspaciosAdminDTO.builder()
                             .claseId(c.getId())
@@ -334,6 +366,7 @@ public class ClaseService {
     }
 
     public ClaseDTO toDTO(Clase clase) {
+        int disponibles = Math.max(0, capacidadOperativa(clase) - clase.getCupoTomado());
         return ClaseDTO.builder()
                 .id(clase.getId())
                 .tipo(clase.getTipo())
@@ -342,12 +375,13 @@ public class ClaseService {
                 .diaSemana(clase.getDiaSemana())
                 .cupoTotal(clase.getCupoTotal())
                 .cupoTomado(clase.getCupoTomado())
-                .lugaresDisponibles(clase.getLugaresDisponibles())
-                .llena(clase.isFull())
+                .lugaresDisponibles(disponibles)
+                .llena(disponibles == 0)
                 .build();
     }
 
     private ClaseAdminDTO toAdminDTO(Clase clase) {
+        int disponibles = Math.max(0, capacidadOperativa(clase) - clase.getCupoTomado());
         return ClaseAdminDTO.builder()
                 .id(clase.getId())
                 .tipo(clase.getTipo())
@@ -355,11 +389,48 @@ public class ClaseService {
                 .hora(clase.getHora())
                 .cupoTotal(clase.getCupoTotal())
                 .cupoTomado(clase.getCupoTomado())
-                .lugaresDisponibles(clase.getLugaresDisponibles())
-                .llena(clase.isFull())
+                .lugaresDisponibles(disponibles)
+                .llena(disponibles == 0)
                 .activo(clase.isActivo())
                 .instructorId(clase.getInstructor() != null ? clase.getInstructor().getId() : null)
                 .instructorNombre(clase.getInstructor() != null ? clase.getInstructor().getNombreCompleto() : null)
                 .build();
+    }
+
+    private EquipoEstudioDTO toEquipoDTO(EquipoEstudio equipo) {
+        int clasesAfectadas = (int) claseRepository.findByTipoAndActivoTrue(equipo.getTipoClase()).stream().count();
+        return toEquipoDTO(equipo, clasesAfectadas);
+    }
+
+    private EquipoEstudioDTO toEquipoDTO(EquipoEstudio equipo, int clasesAfectadas) {
+        List<Integer> deshabilitados = equipo.getDeshabilitados().stream()
+                .sorted()
+                .collect(Collectors.toList());
+        return EquipoEstudioDTO.builder()
+                .tipoClase(equipo.getTipoClase().name())
+                .nombre(equipo.getNombre())
+                .cantidad(equipo.getCantidad())
+                .deshabilitados(deshabilitados)
+                .disponibles(Math.max(0, equipo.getCantidad() - deshabilitados.size()))
+                .clasesAfectadas(clasesAfectadas)
+                .build();
+    }
+
+    private Set<Integer> deshabilitadosPorTipo(TipoClase tipo) {
+        return equipoRepository.findById(tipo)
+                .map(EquipoEstudio::getDeshabilitados)
+                .map(HashSet::new)
+                .orElseGet(HashSet::new);
+    }
+
+    private int capacidadOperativa(Clase clase) {
+        return capacidadOperativa(clase, deshabilitadosPorTipo(clase.getTipo()));
+    }
+
+    private int capacidadOperativa(Clase clase, Set<Integer> deshabilitados) {
+        long dentroDeRango = deshabilitados.stream()
+                .filter(n -> n >= 1 && n <= clase.getCupoTotal())
+                .count();
+        return Math.max(0, clase.getCupoTotal() - (int) dentroDeRango);
     }
 }
