@@ -923,7 +923,8 @@ input::placeholder{color:var(--stone-pale)}
 /* ── Selección de lugar ────────────────────── */
 .modal-seat{max-width:min(780px,96vw);padding:36px 28px 32px}
 
-.seat-map{display:flex;flex-direction:column;align-items:center;gap:14px;margin:20px 0 8px}
+#seatMapContainer{overflow-x:auto}
+.seat-map{display:flex;flex-direction:column;align-items:center;gap:14px;margin:20px auto 8px;width:max-content;max-width:100%}
 
 .seat-stage{
   width:100%;text-align:center;
@@ -936,7 +937,7 @@ input::placeholder{color:var(--stone-pale)}
   border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.06em;
 }
 
-.seat-row{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.seat-row{display:grid;grid-template-columns:repeat(8,clamp(34px,8vw,64px));gap:6px;justify-content:center}
 
 .seat-zone-label{
   text-align:center;font-size:11px;font-weight:600;letter-spacing:.07em;
@@ -959,6 +960,7 @@ input::placeholder{color:var(--stone-pale)}
 .seat-bike.disponible{border-color:var(--accent);color:var(--accent)}
 .seat-bike.disponible:hover{background:var(--accent);color:#fff;transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.15)}
 .seat-bike.ocupado{border-color:var(--stone-light);color:var(--stone-light);opacity:.45;cursor:not-allowed}
+.seat-bike.deshabilitado{border-color:var(--danger);color:var(--danger);background:var(--danger-pale);opacity:.75;cursor:not-allowed}
 .seat-bike.seleccionado{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 14px rgba(0,0,0,.2)}
 
 /* Reformer Pilates */
@@ -973,6 +975,7 @@ input::placeholder{color:var(--stone-pale)}
 .seat-mat.disponible{border-color:var(--accent);color:var(--accent)}
 .seat-mat.disponible:hover{background:var(--accent);color:#fff;transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.15)}
 .seat-mat.ocupado{border-color:var(--stone-light);color:var(--stone-light);opacity:.45;cursor:not-allowed}
+.seat-mat.deshabilitado{border-color:var(--danger);color:var(--danger);background:var(--danger-pale);opacity:.75;cursor:not-allowed}
 .seat-mat.seleccionado{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 14px rgba(0,0,0,.2)}
 
 .seat-num{font-size:11px;font-weight:700;letter-spacing:.02em;position:relative;z-index:1}
@@ -983,6 +986,7 @@ input::placeholder{color:var(--stone-pale)}
 .seat-dot{width:12px;height:12px;border-radius:50%;border:2px solid}
 .seat-dot.disponible{border-color:var(--accent)}
 .seat-dot.ocupado{border-color:var(--stone-light);opacity:.45}
+.seat-dot.deshabilitado{background:var(--danger-pale);border-color:var(--danger)}
 .seat-dot.seleccionado{background:var(--accent);border-color:var(--accent)}
 
 /* Lugar en confirm card */
@@ -1057,6 +1061,9 @@ input::placeholder{color:var(--stone-pale)}
   .pkg-row-featured{margin:0 -14px}
   .footer-grid{grid-template-columns:1fr}
   .pill-instructor{display:none}
+  .equipo-head{align-items:flex-start;flex-direction:column}
+  .equipo-control{width:100%;justify-content:flex-end;flex-wrap:wrap}
+  .equipo-map-wrap{margin:0 -4px;padding-bottom:4px}
 }
 @media(max-width:600px){
   .container{padding:0 20px}
@@ -1073,10 +1080,25 @@ input::placeholder{color:var(--stone-pale)}
   .gpaq-form-grid{grid-template-columns:1fr 1fr}
   .gpaq-row-actions{flex-direction:column;align-items:flex-end}
   .modal-seat{padding:32px 12px 28px}
+  #seatMapContainer{margin:0 -4px;padding-bottom:4px}
   .seat-row{gap:4px}
   .seat-bike{border-radius:8px}
   .seat-bike-svg{width:18px;height:18px}
   .seat-num{font-size:9px}
+  .seat-legend{gap:10px 14px}
+  .seat-legend-item{font-size:11px}
+  .equipo-help{padding:10px 12px;margin-top:12px}
+  .equipo-help strong{font-size:10px}
+  .equipo-help span{font-size:11px}
+  .equipo-row{padding:16px 0 20px}
+  .equipo-head{gap:12px}
+  .equipo-control{align-items:flex-end}
+  .equipo-label{width:100%}
+  .equipo-input{flex:1;min-width:78px}
+  .equipo-btn{padding:9px 12px}
+  .equipo-map{margin:12px auto 6px}
+  .equipo-legend{gap:8px 14px;justify-content:flex-start}
+  .equipo-hint{font-size:10px}
   #clasesOverlay{padding:12px 6px}
   .aw-day{padding:10px 4px}
   .aw-day-num{font-size:16px}
@@ -1452,8 +1474,21 @@ input::placeholder{color:var(--stone-pale)}
 .gpaq-badge-mensual{display:inline-block;font-family:var(--ff-sans);font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;background:var(--black);color:var(--white);padding:2px 6px;vertical-align:middle;margin-left:6px}
 
 /* ── Modal equipo estudio ── */
-.equipo-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--border)}
+.equipo-help{
+  display:flex;flex-direction:column;gap:4px;
+  padding:12px 14px;margin-top:16px;
+  border:1px solid var(--border);border-radius:8px;
+  background:var(--stone-pale);
+  color:var(--stone);
+}
+.equipo-help strong{
+  font-size:11px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--black);
+}
+.equipo-help span{font-size:12px;line-height:1.5}
+.equipo-row{padding:18px 0 22px;border-bottom:1px solid var(--border)}
 .equipo-row:last-child{border-bottom:none}
+.equipo-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}
 .equipo-info{display:flex;flex-direction:column;gap:3px}
 .equipo-nombre{font-family:var(--ff-serif);font-size:16px;font-weight:400;color:var(--black)}
 .equipo-clases{font-size:11px;color:var(--stone);letter-spacing:.04em}
@@ -1463,6 +1498,13 @@ input::placeholder{color:var(--stone-pale)}
 .equipo-input:focus{outline:none;border-color:var(--black)}
 .equipo-btn{font-family:var(--ff-sans);font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;padding:9px 16px;background:var(--black);border:none;color:var(--white);cursor:pointer;transition:background var(--transition)}
 .equipo-btn:hover{background:var(--charcoal)}
+.equipo-map-wrap{overflow-x:auto;padding:4px 0 0}
+.equipo-map{margin:14px 0 8px}
+.equipo-seat{font-family:var(--ff-sans)}
+.equipo-seat.deshabilitado{cursor:pointer}
+.equipo-seat.deshabilitado:hover{background:var(--danger)!important;color:var(--white)!important;transform:translateY(-2px)}
+.equipo-legend{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:10px}
+.equipo-hint{display:block;margin-top:7px;font-size:11px;color:var(--stone);line-height:1.4}
 
 /* badge créditos en confirm modal (admin) */
 .admin-creditos-badge{
@@ -1857,6 +1899,7 @@ input::placeholder{color:var(--stone-pale)}
 .esp-legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
 .esp-ld-ocu{background:var(--danger);opacity:.85}
 .esp-ld-libre{border:2px solid var(--accent)}
+.esp-ld-disabled{background:var(--danger-pale);border:1px solid var(--danger)}
 
 /* ── Mapa de asientos en vista detalle ── */
 .esp-detail-map{overflow-x:auto;padding:4px 0}
@@ -1865,6 +1908,9 @@ input::placeholder{color:var(--stone-pale)}
 .esp-seat:not(.esp-seat-ocu):hover{transform:none !important;box-shadow:none !important;background:none !important}
 .seat-bike.esp-ocu,.seat-mat.esp-ocu{
   opacity:1;border-color:var(--danger);color:var(--danger);background:var(--danger-pale);
+}
+.seat-bike.esp-disabled,.seat-mat.esp-disabled{
+  opacity:.75;border-color:var(--danger);color:var(--danger);background:var(--danger-pale);
 }
 .seat-bike.esp-ocu:hover,.seat-mat.esp-ocu:hover{
   background:var(--danger) !important;color:var(--white) !important;

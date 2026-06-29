@@ -770,6 +770,7 @@
     <div class="seat-legend">
       <div class="seat-legend-item"><div class="seat-dot disponible"></div>Disponible</div>
       <div class="seat-legend-item"><div class="seat-dot ocupado"></div>Ocupado</div>
+      <div class="seat-legend-item"><div class="seat-dot deshabilitado"></div>Dañado / mantenimiento</div>
       <div class="seat-legend-item"><div class="seat-dot seleccionado"></div>Tu lugar</div>
     </div>
     <div class="confirm-actions" style="margin-top:20px">
@@ -892,11 +893,15 @@
 
 <!-- MODAL EQUIPO DEL ESTUDIO (admin) -->
 <div class="overlay" id="equipoOverlay" onclick="equipoOverlayClick(event)">
-  <div class="modal modal-sm">
+  <div class="modal modal-lg">
     <button class="modal-close" onclick="closeEquipo()">✕</button>
     <div class="modal-logo">The <em>Room</em></div>
     <h2 class="modal-title">Equipo del estudio</h2>
-    <p class="modal-sub">Actualizar la cantidad propaga el nuevo cupo a todas las clases activas de esa disciplina.</p>
+    <p class="modal-sub">Actualiza la cantidad total o toca una bicicleta/reformer para marcarlo como dañado y bloquearlo en reservaciones.</p>
+    <div class="equipo-help">
+      <strong>Gestión de mantenimiento</strong>
+      <span>Los equipos marcados como dañados aparecerán bloqueados en el mapa de reservas y no podrán ser seleccionados por clientes ni administradores.</span>
+    </div>
     <div id="equipoList" style="display:flex;flex-direction:column;gap:20px;margin-top:24px"></div>
     <div id="equipoAlert" class="form-error" style="margin-top:12px"></div>
   </div>

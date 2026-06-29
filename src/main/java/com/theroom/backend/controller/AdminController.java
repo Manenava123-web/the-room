@@ -202,6 +202,14 @@ public class AdminController {
         return ResponseEntity.ok(claseService.actualizarEquipo(tipo, cantidad));
     }
 
+    // PUT /api/v1/admin/equipo/{tipo}/deshabilitados — marcar bicicletas/reformers dañados
+    @PutMapping("/equipo/{tipo}/deshabilitados")
+    public ResponseEntity<EquipoEstudioDTO> actualizarEquipoDeshabilitado(
+            @PathVariable TipoClase tipo,
+            @RequestBody EquipoDeshabilitadoRequest request) {
+        return ResponseEntity.ok(claseService.actualizarEquipoDeshabilitado(tipo, request.getDeshabilitados()));
+    }
+
     // ── PAQUETES ──────────────────────────────────────────────
 
     // GET /api/v1/admin/paquetes — todos (activos e inactivos)

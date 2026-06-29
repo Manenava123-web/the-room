@@ -43,6 +43,7 @@ public class ClaseEspaciosAdminDTO {
     public static class EspacioDTO {
         private int numero;
         private boolean ocupado;
+        private boolean deshabilitado;
         private Long reservacionId;
         private String usuarioNombre;
         private String usuarioEmail;
