@@ -244,9 +244,28 @@ button{cursor:pointer;font-family:var(--ff-sans)}
 .week-nav-btn:hover:not(:disabled){background:var(--black);border-color:var(--black);color:var(--white)}
 .week-nav-btn:disabled{opacity:.25;cursor:not-allowed}
 .week-label{font-family:var(--ff-serif);font-size:18px;font-weight:400;color:var(--black);min-width:240px;text-align:center;text-transform:capitalize}
-/* Grid semana */
-.cal-scroll-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.agenda-week{display:grid;grid-template-columns:80px repeat(5,1fr);gap:0;border:1px solid var(--border);overflow:hidden;min-width:480px}
+/* Grid semana — ancho mínimo por columna; scroll horizontal en móvil */
+.cal-scroll-wrap{
+  display:block;
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:visible;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  touch-action:pan-x pan-y;
+}
+.agenda-week{
+  --agenda-time-col:72px;
+  --agenda-day-min:84px;
+  --cal-cols:5;
+  display:grid;
+  grid-template-columns:var(--agenda-time-col) repeat(var(--cal-cols),minmax(var(--agenda-day-min),1fr));
+  width:max-content;
+  min-width:100%;
+  gap:0;
+  border:1px solid var(--border);
+}
 .aw-corner{background:var(--cream);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:14px}
 .aw-day{background:var(--cream);text-align:center;padding:14px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
 .aw-day:last-child{border-right:none}
@@ -258,7 +277,7 @@ button{cursor:pointer;font-family:var(--ff-sans)}
 .aw-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;min-height:68px;position:relative;background:var(--white)}
 .aw-cell:last-child{border-right:none}
 .aw-row:last-child .aw-cell,.aw-row:last-child .aw-time{border-bottom:none}
-.class-pill{display:block;padding:8px 10px;font-size:10px;line-height:1.4;cursor:pointer;transition:opacity var(--transition);height:100%}
+.class-pill{display:block;padding:8px 10px;font-size:10px;line-height:1.4;cursor:pointer;transition:opacity var(--transition);min-height:100%;height:auto}
 .class-pill:hover{opacity:.8}
 .pill-spin{background:var(--black);color:var(--white)}
 .pill-pilates{background:var(--accent-pale);color:var(--accent-dark);border:1px solid var(--accent-light)}
@@ -484,7 +503,6 @@ input::placeholder{color:var(--stone-pale)}
 /* Gestionar clases — grid con columnas dinámicas (incl. fin de semana) */
 .clases-admin-grid{
   grid-template-columns:56px repeat(var(--cal-cols, 5), minmax(78px, 1fr));
-  width:max(100%, calc(56px + var(--cal-cols, 5) * 78px));
 }
 #clasesOverlay .clases-admin-grid .aw-day{padding:10px 6px}
 #clasesOverlay .clases-admin-grid .aw-day .aw-day-name{font-size:10px;letter-spacing:.1em}
@@ -555,7 +573,6 @@ input::placeholder{color:var(--stone-pale)}
 @media(max-width:1024px){
   .paquetes-grid{grid-template-columns:repeat(3,1fr)}
   .footer-grid{grid-template-columns:1fr 1fr;gap:36px}
-  .agenda-week{grid-template-columns:60px repeat(5,1fr)}
 }
 
 /* ═══════════════════════════════════════════
@@ -810,9 +827,13 @@ input::placeholder{color:var(--stone-pale)}
 
 /* Contenedor del grid: scroll horizontal si no cabe */
 #clasesAdminBody{
+  display:block;
+  width:100%;
+  max-width:100%;
   overflow-x:auto;
   overflow-y:visible;
   -webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y;
 }
 #clasesAdminBody::-webkit-scrollbar{height:4px}
 #clasesAdminBody::-webkit-scrollbar-track{background:var(--cream)}
@@ -825,8 +846,8 @@ input::placeholder{color:var(--stone-pale)}
   gap:0;
   border:1px solid var(--border);
   border-radius:6px;
-  overflow:hidden;
-  width:max(100%, 514px);
+  width:max-content;
+  min-width:100%;
 }
 
 /* Reutilizamos .aw-day y .aw-time de la agenda pública pero los sobreescribimos en el admin */
@@ -1188,11 +1209,9 @@ input::placeholder{color:var(--stone-pale)}
   #clasesOverlay .clases-filter-bar .filter-btn{padding:8px 12px;font-size:10px}
   #clasesOverlay .clases-filter-bar .filter-btn-new,
   #clasesOverlay .clases-filter-bar .filter-btn-master{flex:1 1 calc(50% - 6px);min-width:0;margin-left:0;text-align:center}
-  #clasesAdminBody{margin:0 -4px;padding-bottom:4px}
+  #clasesAdminBody{margin:0;padding-bottom:4px}
   .clases-admin-grid{
-    grid-template-columns:44px repeat(var(--cal-cols, 5), minmax(62px, 1fr));
-    width:max(100%, calc(44px + var(--cal-cols, 5) * 62px));
-    border-radius:4px;
+    grid-template-columns:48px repeat(var(--cal-cols, 5), minmax(72px, 1fr));
   }
   #clasesOverlay .clases-admin-grid .aw-day{padding:8px 3px}
   #clasesOverlay .clases-admin-grid .aw-day .aw-day-name{font-size:9px;letter-spacing:.08em}
@@ -1209,11 +1228,24 @@ input::placeholder{color:var(--stone-pale)}
   #clasesOverlay .clases-admin-grid .ap-btn-edit,
   #clasesOverlay .clases-admin-grid .ap-btn-delete{padding:5px 6px;font-size:10px}
   #claseFormOverlay .form-input-time{font-size:16px;letter-spacing:.14em}
-  .aw-day{padding:10px 4px}
-  .aw-day-num{font-size:16px}
-  .class-pill{padding:5px 4px}
+  .agenda-section .container{overflow:visible}
+  .agenda-section .cal-scroll-wrap{
+    margin:0;
+    padding:0 0 8px;
+  }
+  .agenda-week{
+    --agenda-time-col:52px;
+    --agenda-day-min:76px;
+  }
+  .agenda-week .aw-day{padding:12px 8px}
+  .agenda-week .aw-day-name{font-size:10px;letter-spacing:.14em}
+  .agenda-week .aw-day-num{font-size:20px}
+  .agenda-week .aw-time{padding:12px 8px;font-size:11px}
+  .agenda-week .aw-cell{min-height:76px;padding:7px}
+  .agenda-week .class-pill{padding:9px 8px;font-size:11px;line-height:1.45}
+  .agenda-week .pill-name{font-size:10px;margin-bottom:3px}
+  .agenda-week .pill-spots{font-size:10px;margin-top:4px}
   .promo-dot{display:none}
-  .admin-cal-grid{width:max(100%, 514px)}
   .admin-cal-grid .aw-cell{min-height:64px;padding:6px 4px}
   .admin-pill{padding:8px 6px 6px}
   .ap-nombre{font-size:11px}
@@ -1223,8 +1255,7 @@ input::placeholder{color:var(--stone-pale)}
 }
 @media(max-width:420px){
   .clases-admin-grid{
-    grid-template-columns:40px repeat(var(--cal-cols, 5), minmax(56px, 1fr));
-    width:max(100%, calc(40px + var(--cal-cols, 5) * 56px));
+    grid-template-columns:44px repeat(var(--cal-cols, 5), minmax(68px, 1fr));
   }
   #clasesOverlay .clases-admin-grid .admin-pill{min-height:60px}
   #clasesOverlay .clases-admin-grid .ap-btn-activate,
@@ -1948,7 +1979,16 @@ input::placeholder{color:var(--stone-pale)}
 ═══════════════════════════════════════════ */
 
 /* Contenedor scrollable del calendario */
-.esp-cal-wrap{overflow-x:auto;overflow-y:auto;max-height:380px}
+.esp-cal-wrap{
+  display:block;
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:auto;
+  max-height:380px;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y;
+}
 
 /* Grid más compacto dentro del módulo de espacios */
 #espaciosOverlay .admin-cal-grid .aw-day{padding:8px 4px}
