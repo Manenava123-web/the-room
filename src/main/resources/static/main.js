@@ -1299,7 +1299,7 @@ const DIA_LABEL = { LUNES:'Lun', MARTES:'Mar', MIERCOLES:'Mié', JUEVES:'Jue', V
 
 let clasesAdminData        = [];
 let instructoresData       = [];
-let clasesAdminFiltro      = 'todos';
+let clasesAdminFiltro      = 'SPINNING';
 let clasesAdminWeekOffset  = 0;
 let _equipoCapacidad       = null;
 
@@ -1315,19 +1315,31 @@ async function openGestionClases() {
       api('GET', '/admin/instructores'),
       _loadEquipoCapacidad()
     ]);
-    clasesAdminFiltro     = 'todos';
+    clasesAdminFiltro     = 'SPINNING';
     clasesAdminWeekOffset = 0;
-    document.querySelectorAll('#clasesFilterBar .filter-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+    _syncClasesAdminFiltroUI();
     renderClasesAdmin();
   } catch(e) {
     body.innerHTML = `<p class="resv-empty">${e.message}</p>`;
   }
 }
 
+function _syncClasesAdminFiltroUI() {
+  document.querySelectorAll('#clasesFilterBar .filter-btn[data-filtro]').forEach(b => {
+    b.classList.toggle('active', b.dataset.filtro === clasesAdminFiltro);
+  });
+}
+
+function _clasesAdminFiltradas(source = clasesAdminData) {
+  if (clasesAdminFiltro === 'inactivas') {
+    return source.filter(c => !c.activo);
+  }
+  return source.filter(c => c.tipo === clasesAdminFiltro);
+}
+
 function filtrarClasesAdmin(btn, filtro) {
   clasesAdminFiltro = filtro;
-  document.querySelectorAll('#clasesFilterBar .filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  _syncClasesAdminFiltroUI();
   renderClasesAdmin();
 }
 
@@ -1336,20 +1348,14 @@ function adminNextWeek() { clasesAdminWeekOffset++; renderClasesAdmin(); }
 
 function renderClasesAdmin() {
   const body = document.getElementById('clasesAdminBody');
-  const calendarDays = buildCalendarDays(clasesAdminData, true);
+  const filtradas = _clasesAdminFiltradas();
+  const calendarDays = buildCalendarDays(filtradas.length ? filtradas : clasesAdminData, true);
 
-  let lista = clasesAdminData.filter(c => calendarDays.includes(c.diaSemana));
-  if (clasesAdminFiltro === 'inactivas') {
-    lista = lista.filter(c => !c.activo);
-  } else if (clasesAdminFiltro !== 'todos') {
-    lista = lista.filter(c => c.tipo === clasesAdminFiltro);
-  }
+  let lista = filtradas.filter(c => calendarDays.includes(c.diaSemana));
 
   if (!lista.length) { body.innerHTML = '<p class="resv-empty">Sin clases para mostrar.</p>'; return; }
 
-  const horas = [...new Set(
-    clasesAdminData.filter(c => calendarDays.includes(c.diaSemana)).map(c => c.hora)
-  )].sort();
+  const horas = [...new Set(lista.map(c => c.hora))].sort();
 
   const monday  = getMonday(clasesAdminWeekOffset);
   const todayMs = new Date().setHours(0,0,0,0);
@@ -1368,7 +1374,7 @@ function renderClasesAdmin() {
       <span class="week-label">${weekStr}</span>
       <button class="week-nav-btn" onclick="adminNextWeek()" aria-label="Semana siguiente">&#8594;</button>
     </div>`;
-  html += `<div class="admin-cal-grid" style="grid-template-columns:64px repeat(${calendarDays.length},minmax(90px,1fr))">`;
+  html += `<div class="admin-cal-grid clases-admin-grid" style="--cal-cols:${calendarDays.length}">`;
 
   html += '<div class="aw-corner"></div>';
 
@@ -1387,8 +1393,7 @@ function renderClasesAdmin() {
       if (cls) {
         html += `<div class="aw-cell${isPast ? ' cell-past' : ''}">${renderAdminPill(cls, isPast)}</div>`;
       } else {
-        const oculta = clasesAdminData.find(c => c.hora === hora && c.diaSemana === dia);
-        html += `<div class="aw-cell${isPast ? ' cell-past' : ''}">${oculta ? '<div class="admin-pill-hidden"></div>' : ''}</div>`;
+        html += `<div class="aw-cell${isPast ? ' cell-past' : ''}"></div>`;
       }
     });
   });
@@ -1405,6 +1410,7 @@ function renderAdminPill(c, isPast = false) {
   return `
     <div class="admin-pill ${tipo}${c.activo ? '' : ' inactiva'}${isPast ? ' past' : ''}" id="ap-${c.id}">
       ${c.masterClass ? '<span class="ap-master-badge">Master</span>' : ''}
+      ${!c.activo ? '<span class="ap-inactiva-badge">Inactiva</span>' : ''}
       <span class="ap-nombre">${nombre}</span>
       <span class="ap-inst${sinInst ? ' sin' : ''}">${sinInst ? 'Sin asignar' : c.instructorNombre}</span>
       ${isPast
@@ -1629,6 +1635,17 @@ function _bindClaseFormValidation() {
     const el = document.getElementById(id);
     el?.addEventListener('input', _clearClaseFormErrors);
     el?.addEventListener('change', _clearClaseFormErrors);
+  });
+  const horaEl = document.getElementById('claseFormHora');
+  horaEl?.addEventListener('input', e => {
+    let v = e.target.value.replace(/[^\d:]/g, '');
+    const digits = v.replace(':', '');
+    if (digits.length >= 3 && !v.includes(':')) {
+      v = `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
+    } else if (digits.length === 2 && !v.endsWith(':') && e.inputType !== 'deleteContentBackward') {
+      v = `${digits}:`;
+    }
+    e.target.value = v.slice(0, 5);
   });
 }
 
