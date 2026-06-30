@@ -162,8 +162,9 @@ function formatWeekRangeLabel(monday, calendarDays) {
   return `${fmt(monday)} — ${fmt(lastDay)}${yearLabel} ${lastDay.getFullYear()}`;
 }
 
-function setCalGridColumns(el, numDays, timeCol = 80) {
-  el.style.gridTemplateColumns = `${timeCol}px repeat(${numDays}, 1fr)`;
+function setCalGridColumns(el, numDays) {
+  el.style.setProperty('--cal-cols', String(numDays));
+  el.style.removeProperty('grid-template-columns');
 }
 
 let weekOffset  = 0;
