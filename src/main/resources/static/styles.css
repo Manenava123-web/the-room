@@ -263,6 +263,7 @@ button{cursor:pointer;font-family:var(--ff-sans)}
 .pill-spin{background:var(--black);color:var(--white)}
 .pill-pilates{background:var(--accent-pale);color:var(--accent-dark);border:1px solid var(--accent-light)}
 .pill-full{background:var(--border);color:var(--stone-light);cursor:not-allowed}
+.pill-cancelada{background:#f5e6e6;color:var(--danger);cursor:not-allowed;border:1px solid #e8c4c4}
 .pill-name{font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:9px;display:block;margin-bottom:2px}
 .pill-instructor{font-size:9px;opacity:.7;display:block}
 .pill-spots{font-size:9px;font-weight:500;margin-top:3px;display:block}
@@ -469,6 +470,10 @@ input::placeholder{color:var(--stone-pale)}
 .modal-alert{padding:11px 14px;margin-bottom:16px;font-size:12px;display:none;background:var(--danger-pale);border-left:3px solid var(--danger);color:var(--danger)}
 .modal-alert.show{display:block}
 .modal-alert.success{background:var(--success-pale);border-color:var(--success);color:var(--success)}
+.form-req{color:var(--danger);font-weight:500}
+.form-input.field-invalid{border-color:var(--danger);background:var(--danger-pale)}
+.clase-form-hint{font-size:11px;color:var(--stone);margin-top:6px;line-height:1.45}
+#claseFormCupo[readonly]{background:var(--cream);cursor:default;color:var(--black)}
 
 /* ═══════════════════════════════════════════
    PANEL USUARIO (post login)
@@ -909,6 +914,33 @@ input::placeholder{color:var(--stone-pale)}
   font-weight:600;
 }
 .filter-btn-new:hover{opacity:.85}
+.filter-btn-master{
+  margin-left:auto;
+  background:var(--accent-dark);
+  border-color:var(--accent-dark);
+  color:var(--white);
+}
+.filter-btn-master:hover{opacity:.85}
+.ap-master-badge{
+  display:inline-block;
+  font-size:8px;
+  font-weight:600;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  padding:2px 5px;
+  border-radius:2px;
+  background:rgba(255,255,255,.18);
+  margin-bottom:2px;
+}
+.admin-pill.pilates .ap-master-badge{background:rgba(0,0,0,.12);color:var(--accent-dark)}
+.pill-master-tag{
+  display:block;
+  font-size:8px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  opacity:.75;
+  margin-bottom:1px;
+}
 
 .ap-inline{margin-top:6px}
 .ap-inst-form{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
@@ -1848,6 +1880,7 @@ input::placeholder{color:var(--stone-pale)}
 .esp-pill{cursor:pointer;gap:4px}
 .esp-pill:hover{opacity:.85}
 .esp-pill.esp-pill-past{cursor:pointer}
+.esp-pill.esp-pill-cancelada{opacity:.72;cursor:pointer}
 .esp-cupo-line{font-size:11px;font-weight:600;margin-top:2px}
 .esp-cupo-ok{color:#7ddb9f}
 .esp-cupo-casi{color:#ffd27a}

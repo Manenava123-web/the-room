@@ -11,4 +11,5 @@ public class ClaseAdminRequest {
     private String hora;
     private Long instructorId;
     private int cupoTotal;
+    private Boolean masterClass;
 }

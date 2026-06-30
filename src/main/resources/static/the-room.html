@@ -704,6 +704,7 @@
       <button class="filter-btn" onclick="filtrarClasesAdmin(this,'PILATES')">Pilates</button>
       <button class="filter-btn" onclick="filtrarClasesAdmin(this,'inactivas')">Inactivas</button>
       <button class="filter-btn filter-btn-new" onclick="openNuevaClase()">+ Nueva clase</button>
+      <button class="filter-btn filter-btn-master" onclick="openNuevaMasterClass()">+ Master Class</button>
     </div>
     <div id="clasesAdminBody"></div>
   </div>
@@ -716,16 +717,20 @@
     <div class="modal-logo">The <em>Room</em></div>
     <h2 class="modal-title" id="claseFormTitle">Nueva clase</h2>
     <input type="hidden" id="claseFormId"/>
+    <input type="hidden" id="claseFormMaster" value="0"/>
+    <p class="modal-sub clase-form-master-note" id="claseFormMasterNote" style="display:none">
+      La Master Class se crea deshabilitada. Actívala cuando quieras mostrarla en el calendario.
+    </p>
     <div class="form-group">
-      <label>Tipo</label>
-      <select id="claseFormTipo" class="form-input">
+      <label>Tipo <span class="form-req">*</span></label>
+      <select id="claseFormTipo" class="form-input" onchange="onClaseFormTipoChange()">
         <option value="SPINNING">Indoor Cycling</option>
         <option value="PILATES">Pilates</option>
       </select>
     </div>
     <div class="form-row2">
-      <div class="form-group">
-        <label>Día</label>
+      <div class="form-group" id="claseFormDiaWrap">
+        <label>Día <span class="form-req">*</span></label>
         <select id="claseFormDia" class="form-input">
           <option value="LUNES">Lunes</option>
           <option value="MARTES">Martes</option>
@@ -734,9 +739,16 @@
           <option value="VIERNES">Viernes</option>
         </select>
       </div>
+      <div class="form-group" id="claseFormMasterDiaWrap" style="display:none">
+        <label>Día <span class="form-req">*</span></label>
+        <select id="claseFormMasterDia" class="form-input">
+          <option value="SABADO">Sábado</option>
+          <option value="DOMINGO">Domingo</option>
+        </select>
+      </div>
       <div class="form-group">
-        <label>Hora (HH:mm)</label>
-        <input type="text" id="claseFormHora" class="form-input" placeholder="06:00" maxlength="5"/>
+        <label>Hora (HH:mm) <span class="form-req">*</span></label>
+        <input type="text" id="claseFormHora" class="form-input" placeholder="06:00" maxlength="5" inputmode="numeric" autocomplete="off"/>
       </div>
     </div>
     <div class="form-row2">
@@ -747,8 +759,9 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Cupo total</label>
-        <input type="number" id="claseFormCupo" class="form-input" min="1" max="50" value="7"/>
+        <label>Cupo total <span class="form-req">*</span></label>
+        <input type="number" id="claseFormCupo" class="form-input" min="1" max="100" value="7" readonly/>
+        <p class="clase-form-hint" id="claseFormCupoHint">Se toma de la capacidad configurada en Equipo del estudio.</p>
       </div>
     </div>
     <div class="modal-alert" id="claseFormAlert"></div>
@@ -1253,6 +1266,6 @@
 
 <script defer src="https://js.openpay.mx/openpay.v1.min.js"></script>
 <script defer src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
-<script defer src="main.js?v=19"></script>
+<script defer src="main.js?v=24"></script>
 </body>
 </html>

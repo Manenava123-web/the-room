@@ -16,6 +16,7 @@ public class ClaseAdminDTO {
     private int lugaresDisponibles;
     private boolean llena;
     private boolean activo;
+    private boolean masterClass;
     private Long instructorId;
     private String instructorNombre;
 }

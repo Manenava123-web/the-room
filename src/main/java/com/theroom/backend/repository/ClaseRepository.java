@@ -19,6 +19,10 @@ public interface ClaseRepository extends JpaRepository<Clase, Long> {
     List<Clase> findByDiaSemanaInAndActivoTrue(List<DiaSemana> dias);
     List<Clase> findAllByOrderByDiaSemanaAscHoraAsc();
 
+    boolean existsByDiaSemanaAndHoraAndMasterClassTrue(DiaSemana diaSemana, String hora);
+
+    boolean existsByDiaSemanaAndHoraAndMasterClassTrueAndIdNot(DiaSemana diaSemana, String hora, Long id);
+
     // SELECT FOR UPDATE — bloquea la fila durante la transacción para evitar doble reservación
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Clase c WHERE c.id = :id")

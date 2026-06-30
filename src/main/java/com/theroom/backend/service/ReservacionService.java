@@ -6,6 +6,7 @@ import com.theroom.backend.dto.ReservacionAdminRequest;
 import com.theroom.backend.dto.ReservacionDTO;
 import com.theroom.backend.dto.ReservacionRequest;
 import com.theroom.backend.entity.Clase;
+import com.theroom.backend.entity.ClaseSesionCancelada;
 import com.theroom.backend.entity.EquipoEstudio;
 import com.theroom.backend.entity.Reservacion;
 import com.theroom.backend.entity.Usuario;
@@ -16,6 +17,7 @@ import com.theroom.backend.enums.TipoDisciplina;
 import com.theroom.backend.enums.RolUsuario;
 import com.theroom.backend.exception.AppException;
 import com.theroom.backend.repository.ClaseRepository;
+import com.theroom.backend.repository.ClaseSesionCanceladaRepository;
 import com.theroom.backend.repository.EquipoEstudioRepository;
 import com.theroom.backend.repository.PagoRepository;
 import com.theroom.backend.repository.ReservacionRepository;
@@ -43,6 +45,7 @@ public class ReservacionService {
 
     private final ReservacionRepository reservacionRepository;
     private final ClaseRepository claseRepository;
+    private final ClaseSesionCanceladaRepository sesionCanceladaRepository;
     private final EquipoEstudioRepository equipoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PagoRepository pagoRepository;
@@ -64,6 +67,8 @@ public class ReservacionService {
     public ReservacionDTO crear(Long usuarioId, ReservacionRequest request) {
         Clase clase = claseRepository.findByIdForUpdate(request.getClaseId())
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
+
+        validarSesionNoCancelada(clase.getId(), request.getFecha());
 
         Set<Integer> deshabilitados = deshabilitadosPorTipo(clase.getTipo());
         int tomadosEnFecha = reservacionRepository.countConfirmadasByClaseAndFecha(clase.getId(), request.getFecha());
@@ -89,7 +94,9 @@ public class ReservacionService {
         if (usuario.getRol() == RolUsuario.CLIENTE) {
             validarCreditos(usuario, clase);
             if (esInvitado) {
-                validarClaseDeVisitaPagada(usuarioId, clase.getTipo().getDisciplina());
+                validarClaseDeVisitaPagada(usuarioId, clase.getTipo().getDisciplina(), false);
+            } else if (clase.isMasterClass()) {
+                validarClaseDeVisitaPagada(usuarioId, clase.getTipo().getDisciplina(), true);
             }
         }
 
@@ -196,6 +203,8 @@ public class ReservacionService {
         Clase clase = claseRepository.findByIdForUpdate(request.getClaseId())
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
 
+        validarSesionNoCancelada(clase.getId(), request.getFecha());
+
         Set<Integer> deshabilitados = deshabilitadosPorTipo(clase.getTipo());
         int tomadosEnFechaAdmin = reservacionRepository.countConfirmadasByClaseAndFecha(clase.getId(), request.getFecha());
         if (tomadosEnFechaAdmin >= capacidadOperativa(clase, deshabilitados)) {
@@ -220,7 +229,9 @@ public class ReservacionService {
         if (usuario.getRol() == RolUsuario.CLIENTE) {
             validarCreditos(usuario, clase);
             if (esInvitadoAdmin) {
-                validarClaseDeVisitaPagada(usuario.getId(), clase.getTipo().getDisciplina());
+                validarClaseDeVisitaPagada(usuario.getId(), clase.getTipo().getDisciplina(), false);
+            } else if (clase.isMasterClass()) {
+                validarClaseDeVisitaPagada(usuario.getId(), clase.getTipo().getDisciplina(), true);
             }
         }
 
@@ -296,13 +307,21 @@ public class ReservacionService {
         Clase clase = claseRepository.findById(claseId)
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
 
+        if (sesionCanceladaRepository.existsByClaseIdAndFecha(claseId, fecha)) {
+            throw new AppException("Esta clase ya fue cancelada para esa fecha", HttpStatus.CONFLICT);
+        }
+
+        ZoneId zona = ZoneId.of("America/Mexico_City");
+        LocalDateTime inicioClase = LocalDateTime.of(fecha, LocalTime.parse(clase.getHora()));
+        if (!LocalDateTime.now(zona).isBefore(inicioClase)) {
+            throw new AppException("No se puede cancelar una clase que ya inició o terminó", HttpStatus.BAD_REQUEST);
+        }
+
         List<Reservacion> confirmadas = reservacionRepository
                 .findByClaseIdAndFechaAndEstado(claseId, fecha, EstadoReservacion.CONFIRMADA);
 
-        if (confirmadas.isEmpty()) return 0;
-
         TipoDisciplina disc = clase.getTipo().getDisciplina();
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = LocalDateTime.now(zona);
         String instructor = clase.getInstructor() != null ? clase.getInstructor().getNombreCompleto() : null;
 
         for (Reservacion r : confirmadas) {
@@ -337,7 +356,21 @@ public class ReservacionService {
             }
         }
 
+        sesionCanceladaRepository.save(ClaseSesionCancelada.builder()
+                .clase(clase)
+                .fecha(fecha)
+                .canceladaEn(ahora)
+                .build());
+
         return confirmadas.size();
+    }
+
+    private void validarSesionNoCancelada(Long claseId, LocalDate fecha) {
+        if (sesionCanceladaRepository.existsByClaseIdAndFecha(claseId, fecha)) {
+            throw new AppException(
+                    "Esta clase fue cancelada por el estudio y no acepta reservaciones.",
+                    HttpStatus.CONFLICT);
+        }
     }
 
     private ReservacionDTO toDTO(Reservacion r) {
@@ -369,6 +402,7 @@ public class ReservacionService {
         return claseRepository.findByDiaSemanaAndActivoTrue(diaActual)
                 .stream()
                 .filter(c -> estaEnCurso(c.getHora(), ahora))
+                .filter(c -> !sesionCanceladaRepository.existsByClaseIdAndFecha(c.getId(), hoy))
                 .map(c -> {
                     List<Reservacion> reservas = reservacionRepository
                             .findByClaseIdAndFechaAndEstado(c.getId(), hoy, EstadoReservacion.CONFIRMADA);
@@ -472,12 +506,13 @@ public class ReservacionService {
         }
     }
 
-    private void validarClaseDeVisitaPagada(Long usuarioId, TipoDisciplina disciplina) {
+    private void validarClaseDeVisitaPagada(Long usuarioId, TipoDisciplina disciplina, boolean masterClass) {
         if (!pagoRepository.existsVisitaPagadaPorUsuarioYDisciplina(usuarioId, disciplina)) {
             String disc = disciplina == TipoDisciplina.CYCLING ? "Indoor Cycling" : "Pilates";
-            throw new AppException(
-                "Para reservar a un amig@ en " + disc + " primero debe pagarse una clase de visita (paquete de 1 clase).",
-                HttpStatus.PAYMENT_REQUIRED);
+            String msg = masterClass
+                    ? "Para reservar una Master Class de " + disc + " primero debes haber pagado una clase de visita (paquete de 1 clase)."
+                    : "Para reservar a un amig@ en " + disc + " primero debe pagarse una clase de visita (paquete de 1 clase).";
+            throw new AppException(msg, HttpStatus.PAYMENT_REQUIRED);
         }
     }
 
