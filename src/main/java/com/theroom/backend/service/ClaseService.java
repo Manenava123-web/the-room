@@ -6,6 +6,7 @@ import com.theroom.backend.dto.ClaseDTO;
 import com.theroom.backend.dto.ClaseEspaciosAdminDTO;
 import com.theroom.backend.dto.EquipoEstudioDTO;
 import com.theroom.backend.entity.Clase;
+import com.theroom.backend.entity.ClaseSesionCancelada;
 import com.theroom.backend.entity.EquipoEstudio;
 import com.theroom.backend.entity.Instructor;
 import com.theroom.backend.entity.Reservacion;
@@ -14,6 +15,7 @@ import com.theroom.backend.enums.EstadoReservacion;
 import com.theroom.backend.enums.TipoClase;
 import com.theroom.backend.exception.AppException;
 import com.theroom.backend.repository.ClaseRepository;
+import com.theroom.backend.repository.ClaseSesionCanceladaRepository;
 import com.theroom.backend.repository.EquipoEstudioRepository;
 import com.theroom.backend.repository.InstructorRepository;
 import com.theroom.backend.repository.ReservacionRepository;
@@ -28,6 +30,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +47,7 @@ public class ClaseService {
     private final InstructorRepository instructorRepository;
     private final ReservacionRepository reservacionRepository;
     private final EquipoEstudioRepository equipoRepository;
+    private final ClaseSesionCanceladaRepository sesionCanceladaRepository;
 
     @PostConstruct
     @Transactional
@@ -149,12 +153,15 @@ public class ClaseService {
             fechaPorDia.put(toDiaSemana(fecha.getDayOfWeek()), fecha);
         }
 
+        java.util.Set<String> sesionesCanceladas = clavesSesionesCanceladas(lunes, lunes.plusDays(6));
+
         return claseRepository.findByDiaSemanaInAndActivoTrue(new ArrayList<>(fechaPorDia.keySet()))
                 .stream()
                 .map(c -> {
                     LocalDate fecha = fechaPorDia.get(c.getDiaSemana());
+                    boolean cancelada = sesionesCanceladas.contains(claveSesion(c.getId(), fecha));
                     int tomados = reservacionRepository.countConfirmadasByClaseAndFecha(c.getId(), fecha);
-                    int disponibles = Math.max(0, capacidadOperativa(c) - tomados);
+                    int disponibles = cancelada ? 0 : Math.max(0, capacidadOperativa(c) - tomados);
                     return ClaseDTO.builder()
                             .id(c.getId())
                             .tipo(c.getTipo())
@@ -164,7 +171,9 @@ public class ClaseService {
                             .cupoTotal(c.getCupoTotal())
                             .cupoTomado(tomados)
                             .lugaresDisponibles(disponibles)
-                            .llena(disponibles == 0)
+                            .llena(cancelada || disponibles == 0)
+                            .masterClass(c.isMasterClass())
+                            .sesionCancelada(cancelada)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -205,6 +214,8 @@ public class ClaseService {
     // ── Admin: crear nueva clase ───────────────────────────────
     @Transactional
     public ClaseAdminDTO crearClase(ClaseAdminRequest request) {
+        boolean master = Boolean.TRUE.equals(request.getMasterClass());
+        validarHorarioClase(request, master, null);
         int cupo = equipoRepository.findById(request.getTipo())
                 .map(EquipoEstudio::getCantidad)
                 .orElse(request.getCupoTotal());
@@ -216,7 +227,8 @@ public class ClaseService {
                 .instructor(instructor)
                 .cupoTotal(cupo)
                 .cupoTomado(0)
-                .activo(true)
+                .activo(!master)
+                .masterClass(master)
                 .build();
         return toAdminDTO(claseRepository.save(clase));
     }
@@ -226,6 +238,7 @@ public class ClaseService {
     public ClaseAdminDTO editarClase(Long id, ClaseAdminRequest request) {
         Clase clase = claseRepository.findById(id)
                 .orElseThrow(() -> new AppException("Clase no encontrada", HttpStatus.NOT_FOUND));
+        validarHorarioClase(request, clase.isMasterClass(), id);
         int cupo = equipoRepository.findById(request.getTipo())
                 .map(EquipoEstudio::getCantidad)
                 .orElse(request.getCupoTotal());
@@ -279,10 +292,13 @@ public class ClaseService {
             fechaPorDia.put(toDiaSemana(fecha.getDayOfWeek()), fecha);
         }
 
+        Set<String> sesionesCanceladas = clavesSesionesCanceladas(lunes, lunes.plusDays(6));
+
         return claseRepository.findByDiaSemanaInAndActivoTrue(new ArrayList<>(fechaPorDia.keySet()))
                 .stream()
                 .map(c -> {
                     LocalDate fecha = fechaPorDia.get(c.getDiaSemana());
+                    boolean cancelada = sesionesCanceladas.contains(claveSesion(c.getId(), fecha));
                     List<Reservacion> reservas = reservacionRepository
                             .findByClaseIdAndFechaAndEstado(c.getId(), fecha, EstadoReservacion.CONFIRMADA);
 
@@ -324,7 +340,7 @@ public class ClaseService {
                             .collect(Collectors.toList());
 
                     int tomados = reservas.size();
-                    int disponibles = Math.max(0, capacidadOperativa(c, deshabilitados) - tomados);
+                    int disponibles = cancelada ? 0 : Math.max(0, capacidadOperativa(c, deshabilitados) - tomados);
 
                     return ClaseEspaciosAdminDTO.builder()
                             .claseId(c.getId())
@@ -336,7 +352,8 @@ public class ClaseService {
                             .cupoTotal(c.getCupoTotal())
                             .cupoTomado(tomados)
                             .lugaresDisponibles(disponibles)
-                            .llena(disponibles == 0)
+                            .llena(cancelada || disponibles == 0)
+                            .sesionCancelada(cancelada)
                             .espacios(espacios)
                             .sinLugar(sinLugar)
                             .canceladas(canceladas)
@@ -345,6 +362,42 @@ public class ClaseService {
                 .sorted(Comparator.comparing(ClaseEspaciosAdminDTO::getFecha)
                         .thenComparing(ClaseEspaciosAdminDTO::getHora))
                 .collect(Collectors.toList());
+    }
+
+    private void validarHorarioClase(ClaseAdminRequest request, boolean masterClass, Long excludeId) {
+        request.setHora(normalizarHora(request.getHora()));
+
+        EnumSet<DiaSemana> laboral = EnumSet.of(
+                DiaSemana.LUNES, DiaSemana.MARTES, DiaSemana.MIERCOLES,
+                DiaSemana.JUEVES, DiaSemana.VIERNES);
+        EnumSet<DiaSemana> finde = EnumSet.of(DiaSemana.SABADO, DiaSemana.DOMINGO);
+
+        if (masterClass) {
+            if (!finde.contains(request.getDiaSemana()))
+                throw new AppException("Una Master Class solo puede programarse sábado o domingo", HttpStatus.BAD_REQUEST);
+            boolean conflicto = excludeId == null
+                    ? claseRepository.existsByDiaSemanaAndHoraAndMasterClassTrue(
+                            request.getDiaSemana(), request.getHora())
+                    : claseRepository.existsByDiaSemanaAndHoraAndMasterClassTrueAndIdNot(
+                            request.getDiaSemana(), request.getHora(), excludeId);
+            if (conflicto)
+                throw new AppException(
+                        "Ya existe una Master Class en ese día y horario. Elige otro horario.",
+                        HttpStatus.CONFLICT);
+        } else if (!laboral.contains(request.getDiaSemana())) {
+            throw new AppException("Las clases regulares solo pueden ser de lunes a viernes", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private String normalizarHora(String hora) {
+        if (hora == null || !hora.matches("^\\d{1,2}:\\d{2}$"))
+            throw new AppException("La hora debe tener formato HH:mm", HttpStatus.BAD_REQUEST);
+        String[] parts = hora.split(":");
+        int hh = Integer.parseInt(parts[0]);
+        int mm = Integer.parseInt(parts[1]);
+        if (hh > 23 || mm > 59)
+            throw new AppException("La hora indicada no es válida", HttpStatus.BAD_REQUEST);
+        return String.format("%02d:%02d", hh, mm);
     }
 
     private Instructor resolverInstructor(Long instructorId) {
@@ -377,6 +430,7 @@ public class ClaseService {
                 .cupoTomado(clase.getCupoTomado())
                 .lugaresDisponibles(disponibles)
                 .llena(disponibles == 0)
+                .masterClass(clase.isMasterClass())
                 .build();
     }
 
@@ -392,6 +446,7 @@ public class ClaseService {
                 .lugaresDisponibles(disponibles)
                 .llena(disponibles == 0)
                 .activo(clase.isActivo())
+                .masterClass(clase.isMasterClass())
                 .instructorId(clase.getInstructor() != null ? clase.getInstructor().getId() : null)
                 .instructorNombre(clase.getInstructor() != null ? clase.getInstructor().getNombreCompleto() : null)
                 .build();
@@ -432,5 +487,15 @@ public class ClaseService {
                 .filter(n -> n >= 1 && n <= clase.getCupoTotal())
                 .count();
         return Math.max(0, clase.getCupoTotal() - (int) dentroDeRango);
+    }
+
+    private Set<String> clavesSesionesCanceladas(LocalDate desde, LocalDate hasta) {
+        return sesionCanceladaRepository.findByFechaBetween(desde, hasta).stream()
+                .map(sc -> claveSesion(sc.getClase().getId(), sc.getFecha()))
+                .collect(Collectors.toSet());
+    }
+
+    private String claveSesion(Long claseId, LocalDate fecha) {
+        return claseId + "|" + fecha;
     }
 }

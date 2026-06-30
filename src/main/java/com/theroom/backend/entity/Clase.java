@@ -39,6 +39,10 @@ public class Clase {
     @Column(nullable = false)
     private boolean activo = true;
 
+    @Column(name = "master_class", nullable = false)
+    @Builder.Default
+    private boolean masterClass = false;
+
     public int getLugaresDisponibles() {
         return cupoTotal - cupoTomado;
     }

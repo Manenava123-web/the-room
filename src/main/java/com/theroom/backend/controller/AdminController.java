@@ -125,11 +125,12 @@ public class AdminController {
             @PathVariable Long id,
             @PathVariable @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fecha) {
         int canceladas = reservacionService.cancelarClasePorFecha(id, fecha);
+        String mensaje = canceladas == 0
+                ? "Clase deshabilitada para esa fecha. Ya no aceptará nuevas reservaciones."
+                : canceladas + " reservación(es) cancelada(s). Los créditos y fechas de vencimiento fueron actualizados. La clase quedó deshabilitada para nuevas reservaciones.";
         return ResponseEntity.ok(java.util.Map.of(
                 "canceladas", canceladas,
-                "mensaje", canceladas == 0
-                        ? "No había reservaciones confirmadas para esta clase."
-                        : canceladas + " reservación(es) cancelada(s). Los créditos y fechas de vencimiento fueron actualizados."));
+                "mensaje", mensaje));
     }
 
     // GET /api/v1/admin/instructores — activos (para dropdowns)

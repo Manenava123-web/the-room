@@ -16,4 +16,6 @@ public class ClaseDTO {
     private int cupoTomado;
     private int lugaresDisponibles;
     private boolean llena;
+    private boolean masterClass;
+    private boolean sesionCancelada;
 }

@@ -27,6 +27,9 @@ public class ClaseEspaciosAdminDTO {
     private int lugaresDisponibles;
     private boolean llena;
 
+    /** La sesión de esta clase en esta fecha fue cancelada por el estudio. */
+    private boolean sesionCancelada;
+
     /** Cada asiento del 1 al cupoTotal con su estado ocupado/libre. */
     private List<EspacioDTO> espacios;
 

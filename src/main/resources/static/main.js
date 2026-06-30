@@ -131,10 +131,40 @@ async function api(method, path, body) {
 /* ═══════════════════════════════════════════
    AGENDA — CONSTANTES
 ═══════════════════════════════════════════ */
-const DAYS        = ['Lun','Mar','Mié','Jue','Vie'];          // solo Lun–Vie
+const DAYS        = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MONTH_NAMES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-const DIA_IDX     = { LUNES:0, MARTES:1, MIERCOLES:2, JUEVES:3, VIERNES:4 }; // sábado/domingo excluidos
+const DIA_IDX     = { LUNES:0, MARTES:1, MIERCOLES:2, JUEVES:3, VIERNES:4, SABADO:5, DOMINGO:6 };
 const DIAS_ORDEN  = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES'];
+const DIAS_ORDEN_BASE = DIAS_ORDEN;
+
+function isWeekendClass(c) {
+  return !!(c.masterClass || c.diaSemana === 'SABADO' || c.diaSemana === 'DOMINGO');
+}
+
+function getWeekendDaysFromClases(clases, admin = false) {
+  const weekend = clases.filter(c => isWeekendClass(c) && (admin || c.activo !== false));
+  const days = [];
+  if (weekend.some(c => c.diaSemana === 'SABADO')) days.push('SABADO');
+  if (weekend.some(c => c.diaSemana === 'DOMINGO')) days.push('DOMINGO');
+  return days;
+}
+
+function buildCalendarDays(clases, admin = false) {
+  return [...DIAS_ORDEN_BASE, ...getWeekendDaysFromClases(clases, admin)];
+}
+
+function formatWeekRangeLabel(monday, calendarDays) {
+  const lastOffset = DIA_IDX[calendarDays[calendarDays.length - 1]];
+  const lastDay = new Date(monday);
+  lastDay.setDate(monday.getDate() + lastOffset);
+  const fmt = d => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+  const yearLabel = lastDay.getFullYear() !== monday.getFullYear() ? ` ${lastDay.getFullYear()}` : '';
+  return `${fmt(monday)} — ${fmt(lastDay)}${yearLabel} ${lastDay.getFullYear()}`;
+}
+
+function setCalGridColumns(el, numDays, timeCol = 80) {
+  el.style.gridTemplateColumns = `${timeCol}px repeat(${numDays}, 1fr)`;
+}
 
 let weekOffset  = 0;
 let agendaFilter = 'todos';
@@ -199,50 +229,45 @@ async function buildAgenda(filter) {
 
   document.getElementById('btnPrevWeek').disabled = weekOffset <= 0;
 
-  const viernes = new Date(monday); viernes.setDate(monday.getDate() + 4);
-  const fmt = d => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-  const yearLabel = viernes.getFullYear() !== monday.getFullYear() ? ` ${viernes.getFullYear()}` : '';
-  document.getElementById('weekLabel').textContent =
-    `${fmt(monday)} — ${fmt(viernes)}${yearLabel} ${viernes.getFullYear()}`;
+  const calendarDays = buildCalendarDays(clases, false);
+  setCalGridColumns(g, calendarDays.length);
+  document.getElementById('weekLabel').textContent = formatWeekRangeLabel(monday, calendarDays);
 
-  // Solo clases Lun–Vie
-  const clasesSemana = clases.filter(c => c.diaSemana in DIA_IDX);
+  const clasesSemana = clases.filter(c => !c.masterClass || calendarDays.includes(c.diaSemana));
   const horas = [...new Set(clasesSemana.map(c => c.hora))].sort();
 
-  // Esquina vacía
   const corner = document.createElement('div');
   corner.className = 'aw-corner';
   g.appendChild(corner);
 
-  // Encabezados Lun–Vie con fecha
-  for (let d = 0; d < 5; d++) {
-    const date    = new Date(monday); date.setDate(monday.getDate() + d);
+  const colDates = calendarDays.map(dia => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + DIA_IDX[dia]);
+    return d;
+  });
+
+  calendarDays.forEach((dia, i) => {
+    const date    = colDates[i];
     const isToday = date.getTime() === today.getTime();
     const el      = document.createElement('div');
     el.className  = 'aw-day' + (isToday ? ' today' : '');
-    el.innerHTML  = `<span class="aw-day-name">${DAYS[d]}</span><span class="aw-day-num">${date.getDate()}</span>`;
+    el.innerHTML  = `<span class="aw-day-name">${DAYS[DIA_IDX[dia]]}</span><span class="aw-day-num">${date.getDate()}</span>`;
     g.appendChild(el);
-  }
-
-  // Fechas de cada columna precalculadas
-  const colDates = Array.from({length:5}, (_, d) => {
-    const dt = new Date(monday); dt.setDate(monday.getDate() + d); return dt;
   });
 
-  // Filas por hora
   horas.forEach(hora => {
     const timeEl      = document.createElement('div');
     timeEl.className  = 'aw-time';
     timeEl.textContent = hora.replace(/^0/, '');
     g.appendChild(timeEl);
 
-    for (let d = 0; d < 5; d++) {
+    calendarDays.forEach((dia, d) => {
       const cell       = document.createElement('div');
       const colMs      = colDates[d].getTime();
       const isDatePast = colMs < todayMs;
       const isToday    = colMs === todayMs;
       cell.className   = 'aw-cell';
-      const cls = clasesSemana.find(c => c.hora === hora && DIA_IDX[c.diaSemana] === d);
+      const cls = clasesSemana.find(c => c.hora === hora && c.diaSemana === dia);
 
       if (cls && (agendaFilter === 'todos' ||
          (agendaFilter === 'spinning' && cls.tipo === 'SPINNING') ||
@@ -250,18 +275,26 @@ async function buildAgenda(filter) {
 
         const classHour = parseInt(cls.hora.split(':')[0]);
         const isPast    = isDatePast || (isToday && classHour < nowHour);
+        const isCancelled = cls.sesionCancelada;
         const full = cls.llena || isPast;
-        const low  = !isPast && !cls.llena && cls.lugaresDisponibles <= 2;
+        const low  = !isPast && !isCancelled && !cls.llena && cls.lugaresDisponibles <= 2;
+        const tipoLabel = cls.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates';
         const pill = document.createElement('a');
-        pill.className = 'class-pill ' + (isPast ? 'pill-past' : full ? 'pill-full' : cls.tipo === 'SPINNING' ? 'pill-spin' : 'pill-pilates');
+        pill.className = 'class-pill ' + (
+          isPast ? 'pill-past'
+          : isCancelled ? 'pill-cancelada'
+          : full ? 'pill-full'
+          : cls.tipo === 'SPINNING' ? 'pill-spin' : 'pill-pilates');
+        const spotsText = isPast ? 'PASADO' : isCancelled ? 'CANCELADA' : cls.llena ? 'LLENO' : `${cls.lugaresDisponibles} lugares`;
         pill.innerHTML = `
-          <span class="pill-name">${cls.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'}</span>
+          ${cls.masterClass ? '<span class="pill-master-tag">Master Class</span>' : ''}
+          <span class="pill-name">${tipoLabel}</span>
           <span class="pill-instructor">${cls.instructor ?? ''}</span>
-          <span class="pill-spots${low ? ' low' : ''}">${isPast ? 'PASADO' : cls.llena ? 'LLENO' : `${cls.lugaresDisponibles} lugares`}</span>`;
+          <span class="pill-spots${low ? ' low' : ''}">${spotsText}</span>`;
 
-        if (!isPast && !cls.llena) {
+        if (!isPast && !cls.llena && !isCancelled) {
           const clsSnap = { ...cls };
-          const dayIdx  = d;
+          const dayIdx  = DIA_IDX[dia];
           pill.style.cursor = 'pointer';
           pill.onclick = () => {
             if (!currentUser) { openAuth('login'); return; }
@@ -271,7 +304,7 @@ async function buildAgenda(filter) {
         cell.appendChild(pill);
       }
       g.appendChild(cell);
-    }
+    });
   });
 }
 
@@ -425,13 +458,13 @@ async function abrirConfirmacion(cls, dayIdx, lugarNumero = null) {
   fecha.setDate(monday.getDate() + dayIdx);
   const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}-${String(fecha.getDate()).padStart(2,'0')}`;
 
-  pendingReservacion = { claseId: cls.id, fecha: fechaStr, lugarNumero, tipo: cls.tipo };
+  pendingReservacion = { claseId: cls.id, fecha: fechaStr, lugarNumero, tipo: cls.tipo, masterClass: !!cls.masterClass };
 
   const isSpin = cls.tipo === 'SPINNING';
   document.getElementById('confirmCard').innerHTML = `
     <div class="confirm-row">
       <span class="confirm-label">Clase</span>
-      <span class="confirm-tipo ${isSpin ? 'spin' : 'pilates'}">${isSpin ? 'Indoor Cycling' : 'Pilates'}</span>
+      <span class="confirm-tipo ${isSpin ? 'spin' : 'pilates'}">${isSpin ? 'Indoor Cycling' : 'Pilates'}${cls.masterClass ? ' · Master Class' : ''}</span>
     </div>
     <div class="confirm-row">
       <span class="confirm-label">Instructor</span>
@@ -456,7 +489,11 @@ async function abrirConfirmacion(cls, dayIdx, lugarNumero = null) {
     </div>` : ''}
     <div class="confirm-cancel-aviso">
       Puedes cancelar hasta <strong>${isSpin ? _cancelacionCyclingHoras + ' horas' : _cancelacionPilatesHoras + ' horas'}</strong> antes del inicio.
-    </div>`;
+    </div>
+    ${cls.masterClass ? `
+    <div class="confirm-cancel-aviso" style="margin-top:10px">
+      Master Class: debes haber pagado previamente una <strong>clase de visita</strong> (paquete de 1 clase) en esta disciplina.
+    </div>` : ''}`;
 
   // Si es admin → mostrar selector buscable de cliente
   const adminWrap = document.getElementById('adminClienteWrap');
@@ -527,6 +564,8 @@ async function doConfirmReservacion() {
   } catch(e) {
     if (e.message.includes('clase de visita')) {
       showToast('Se requiere clase de visita', e.message);
+    } else if (e.message.includes('fue cancelada por el estudio')) {
+      showToast('Clase cancelada', e.message);
     } else if (isAdmin()) {
       showToast('Sin créditos disponibles', e.message);
     } else if (e.message.includes('Sin clases de Indoor Cycling')) {
@@ -539,8 +578,8 @@ async function doConfirmReservacion() {
       showToast('No fue posible reservar', e.message);
     }
   } finally {
-    btn.disabled = false; btn.textContent = 'Confirmar lugar';
-    pendingReservacion = null;
+    btn.disabled = false;
+    btn.textContent = 'Confirmar lugar';
   }
 }
 
@@ -777,12 +816,26 @@ function switchAuth(tab) {
   clearAlert();
 }
 
-function showAlert(msg, type = '') {
-  const el = document.getElementById('mAlert');
+function showModalAlert(elOrId, msg, type = '') {
+  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  if (!el) return;
+  el.classList.remove('show', 'success');
   el.textContent = msg;
-  el.className   = 'modal-alert show' + (type ? ' ' + type : '');
+  el.className = 'modal-alert' + (type ? ' ' + type : '');
+  requestAnimationFrame(() => el.classList.add('show'));
 }
-function clearAlert() { document.getElementById('mAlert').className = 'modal-alert'; }
+
+function clearModalAlert(elOrId) {
+  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  if (!el) return;
+  el.textContent = '';
+  el.className = 'modal-alert';
+}
+
+function showAlert(msg, type = '') {
+  showModalAlert('mAlert', msg, type);
+}
+function clearAlert() { clearModalAlert('mAlert'); }
 function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
 
 /* ── Login ── */
@@ -1242,12 +1295,13 @@ function reservOverlayClick(e) { if (e.target === document.getElementById('reser
 /* ═══════════════════════════════════════════
    GESTIONAR CLASES (admin)
 ═══════════════════════════════════════════ */
-const DIA_LABEL = { LUNES:'Lun', MARTES:'Mar', MIERCOLES:'Mié', JUEVES:'Jue', VIERNES:'Vie' };
+const DIA_LABEL = { LUNES:'Lun', MARTES:'Mar', MIERCOLES:'Mié', JUEVES:'Jue', VIERNES:'Vie', SABADO:'Sáb', DOMINGO:'Dom' };
 
 let clasesAdminData        = [];
 let instructoresData       = [];
 let clasesAdminFiltro      = 'todos';
 let clasesAdminWeekOffset  = 0;
+let _equipoCapacidad       = null;
 
 async function openGestionClases() {
   document.getElementById('udrop')?.classList.remove('open');
@@ -1258,7 +1312,8 @@ async function openGestionClases() {
   try {
     [clasesAdminData, instructoresData] = await Promise.all([
       api('GET', '/admin/clases'),
-      api('GET', '/admin/instructores')
+      api('GET', '/admin/instructores'),
+      _loadEquipoCapacidad()
     ]);
     clasesAdminFiltro     = 'todos';
     clasesAdminWeekOffset = 0;
@@ -1281,9 +1336,9 @@ function adminNextWeek() { clasesAdminWeekOffset++; renderClasesAdmin(); }
 
 function renderClasesAdmin() {
   const body = document.getElementById('clasesAdminBody');
+  const calendarDays = buildCalendarDays(clasesAdminData, true);
 
-  // Filtrar solo Lun–Vie
-  let lista = clasesAdminData.filter(c => c.diaSemana in DIA_LABEL);
+  let lista = clasesAdminData.filter(c => calendarDays.includes(c.diaSemana));
   if (clasesAdminFiltro === 'inactivas') {
     lista = lista.filter(c => !c.activo);
   } else if (clasesAdminFiltro !== 'todos') {
@@ -1292,22 +1347,20 @@ function renderClasesAdmin() {
 
   if (!lista.length) { body.innerHTML = '<p class="resv-empty">Sin clases para mostrar.</p>'; return; }
 
-  const horas = [...new Set(clasesAdminData.filter(c => c.diaSemana in DIA_LABEL).map(c => c.hora))].sort();
+  const horas = [...new Set(
+    clasesAdminData.filter(c => calendarDays.includes(c.diaSemana)).map(c => c.hora)
+  )].sort();
 
-  // Calcular fechas Lun–Vie de la semana seleccionada
   const monday  = getMonday(clasesAdminWeekOffset);
-  const friday  = new Date(monday); friday.setDate(monday.getDate() + 4);
   const todayMs = new Date().setHours(0,0,0,0);
-  const fmtD    = d => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-  const weekStr = `${fmtD(monday)} — ${fmtD(friday)} ${friday.getFullYear()}`;
+  const weekStr = formatWeekRangeLabel(monday, calendarDays);
 
-  // Fechas por columna con flag isPast
-  const colDates = DIAS_ORDEN.map((_, i) => {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
+  const colDates = calendarDays.map(dia => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + DIA_IDX[dia]);
     return { num: d.getDate(), isPast: d.getTime() < todayMs };
   });
 
-  // Nav de semana + label
   const prevDisabled = clasesAdminWeekOffset <= 0 ? 'disabled' : '';
   let html = `
     <div class="week-nav" style="margin-bottom:16px">
@@ -1315,23 +1368,20 @@ function renderClasesAdmin() {
       <span class="week-label">${weekStr}</span>
       <button class="week-nav-btn" onclick="adminNextWeek()" aria-label="Semana siguiente">&#8594;</button>
     </div>`;
-  html += '<div class="admin-cal-grid">';
+  html += `<div class="admin-cal-grid" style="grid-template-columns:64px repeat(${calendarDays.length},minmax(90px,1fr))">`;
 
-  // Esquina
   html += '<div class="aw-corner"></div>';
 
-  // Encabezados de días con fecha y marcador de pasado
-  DIAS_ORDEN.forEach((dia, i) => {
+  calendarDays.forEach((dia, i) => {
     html += `<div class="aw-day${colDates[i].isPast ? ' day-past' : ''}">
       <span class="aw-day-name">${DIA_LABEL[dia]}</span>
       <span class="aw-day-num">${colDates[i].num}</span>
     </div>`;
   });
 
-  // Filas de horas
   horas.forEach(hora => {
     html += `<div class="aw-time">${hora.replace(/^0/,'')}</div>`;
-    DIAS_ORDEN.forEach((dia, i) => {
+    calendarDays.forEach((dia, i) => {
       const isPast = colDates[i].isPast;
       const cls = lista.find(c => c.hora === hora && c.diaSemana === dia);
       if (cls) {
@@ -1351,9 +1401,11 @@ function renderAdminPill(c, isPast = false) {
   const isSpin  = c.tipo === 'SPINNING';
   const sinInst = !c.instructorNombre;
   const tipo    = isSpin ? 'spin' : 'pilates';
+  const nombre  = isSpin ? 'Indoor Cycling' : 'Pilates';
   return `
     <div class="admin-pill ${tipo}${c.activo ? '' : ' inactiva'}${isPast ? ' past' : ''}" id="ap-${c.id}">
-      <span class="ap-nombre">${isSpin ? 'Indoor Cycling' : 'Pilates'}</span>
+      ${c.masterClass ? '<span class="ap-master-badge">Master</span>' : ''}
+      <span class="ap-nombre">${nombre}</span>
       <span class="ap-inst${sinInst ? ' sin' : ''}">${sinInst ? 'Sin asignar' : c.instructorNombre}</span>
       ${isPast
         ? `<span class="ap-past-label">Pasado</span>`
@@ -1467,30 +1519,180 @@ function clasesOverlayClick(e){ if (e.target === document.getElementById('clases
 /* ═══════════════════════════════════════════
    CREAR / EDITAR CLASE (admin)
 ═══════════════════════════════════════════ */
-function openNuevaClase() {
-  document.getElementById('claseFormId').value       = '';
-  document.getElementById('claseFormTitle').textContent = 'Nueva clase';
-  document.getElementById('claseFormTipo').value     = 'SPINNING';
-  document.getElementById('claseFormDia').value      = 'LUNES';
-  document.getElementById('claseFormHora').value     = '';
-  document.getElementById('claseFormCupo').value     = 7;
-  document.getElementById('claseFormAlert').textContent = '';
+async function _loadEquipoCapacidad(force = false) {
+  if (_equipoCapacidad && !force) return _equipoCapacidad;
+  const lista = await api('GET', '/admin/equipo');
+  _equipoCapacidad = {};
+  lista.forEach(e => { _equipoCapacidad[e.tipoClase] = e; });
+  return _equipoCapacidad;
+}
+
+function _invalidateEquipoCapacidad() {
+  _equipoCapacidad = null;
+}
+
+function _claseFormUnidad(tipo) {
+  return tipo === 'SPINNING' ? 'bicicletas' : 'reformers';
+}
+
+function _syncClaseFormCupo() {
+  const tipo   = document.getElementById('claseFormTipo').value;
+  const eq     = _equipoCapacidad?.[tipo];
+  const cupoEl = document.getElementById('claseFormCupo');
+  const hintEl = document.getElementById('claseFormCupoHint');
+  if (!eq) {
+    cupoEl.value = '';
+    hintEl.textContent = 'No se encontró la capacidad de esta disciplina. Revisa Equipo del estudio.';
+    return;
+  }
+  cupoEl.value = eq.cantidad;
+  const unidad = _claseFormUnidad(tipo);
+  let hint = `Cupo establecido: ${eq.cantidad} ${unidad} (Equipo del estudio).`;
+  if (eq.deshabilitados?.length) {
+    hint += ` ${eq.disponibles} operativos por mantenimiento.`;
+  }
+  hintEl.textContent = hint;
+}
+
+function onClaseFormTipoChange() {
+  _clearClaseFormErrors();
+  _syncClaseFormCupo();
+}
+
+function _clearClaseFormErrors() {
+  document.querySelectorAll('#claseFormOverlay .field-invalid').forEach(el => el.classList.remove('field-invalid'));
+  clearModalAlert('claseFormAlert');
+}
+
+function _setClaseFormError(message, fieldIds = []) {
+  showModalAlert('claseFormAlert', message);
+  fieldIds.forEach(id => document.getElementById(id)?.classList.add('field-invalid'));
+}
+
+function _validateClaseForm() {
+  _clearClaseFormErrors();
+
+  const tipo    = document.getElementById('claseFormTipo').value;
+  const horaRaw = document.getElementById('claseFormHora').value.trim();
+  const cupoRaw = document.getElementById('claseFormCupo').value.trim();
+  const invalid = [];
+
+  if (!tipo) invalid.push('claseFormTipo');
+
+  if (!horaRaw) {
+    invalid.push('claseFormHora');
+    _setClaseFormError('Indica la hora de la clase.', invalid);
+    return null;
+  }
+  if (!/^\d{1,2}:\d{2}$/.test(horaRaw)) {
+    invalid.push('claseFormHora');
+    _setClaseFormError('La hora debe tener formato HH:mm (ej. 06:00).', invalid);
+    return null;
+  }
+  const horaParts = horaRaw.split(':');
+  const hora = `${horaParts[0].padStart(2, '0')}:${horaParts[1]}`;
+  const [hh, mm] = hora.split(':').map(Number);
+  if (Number.isNaN(hh) || Number.isNaN(mm) || hh > 23 || mm > 59) {
+    invalid.push('claseFormHora');
+    _setClaseFormError('La hora indicada no es válida.', invalid);
+    return null;
+  }
+
+  const eq = _equipoCapacidad?.[tipo];
+  if (!eq) {
+    _setClaseFormError('No se pudo obtener la capacidad del estudio para esta disciplina.', ['claseFormTipo', 'claseFormCupo']);
+    return null;
+  }
+
+  const cupo = parseInt(cupoRaw, 10);
+  if (!cupoRaw || Number.isNaN(cupo) || cupo < 1) {
+    invalid.push('claseFormCupo');
+    _setClaseFormError('No se pudo determinar el cupo de la clase.', invalid);
+    return null;
+  }
+  if (cupo !== eq.cantidad) {
+    invalid.push('claseFormCupo', 'claseFormTipo');
+    _setClaseFormError(
+      `El cupo debe ser ${eq.cantidad} ${_claseFormUnidad(tipo)}, según Equipo del estudio.`,
+      invalid
+    );
+    return null;
+  }
+
+  return { tipo, hora, cupoTotal: eq.cantidad };
+}
+
+function _bindClaseFormValidation() {
+  if (_bindClaseFormValidation.done) return;
+  _bindClaseFormValidation.done = true;
+  ['claseFormHora', 'claseFormTipo', 'claseFormDia', 'claseFormMasterDia'].forEach(id => {
+    const el = document.getElementById(id);
+    el?.addEventListener('input', _clearClaseFormErrors);
+    el?.addEventListener('change', _clearClaseFormErrors);
+  });
+}
+
+async function _prepareClaseForm() {
+  _bindClaseFormValidation();
+  try {
+    await _loadEquipoCapacidad();
+    _syncClaseFormCupo();
+  } catch(e) {
+    _setClaseFormError('No se pudo cargar la capacidad del estudio.');
+  }
+}
+
+function _resetClaseForm({ master = false } = {}) {
+  document.getElementById('claseFormId').value = '';
+  document.getElementById('claseFormMaster').value = master ? '1' : '0';
+  document.getElementById('claseFormTitle').textContent = master ? 'Nueva Master Class' : 'Nueva clase';
+  document.getElementById('claseFormTipo').value = 'SPINNING';
+  document.getElementById('claseFormDia').value = 'LUNES';
+  document.getElementById('claseFormMasterDia').value = 'SABADO';
+  document.getElementById('claseFormHora').value = '';
+  document.getElementById('claseFormCupo').value = 7;
+  clearModalAlert('claseFormAlert');
+  document.getElementById('claseFormDiaWrap').style.display = master ? 'none' : '';
+  document.getElementById('claseFormMasterDiaWrap').style.display = master ? '' : 'none';
+  document.getElementById('claseFormMasterNote').style.display = master ? '' : 'none';
   _populateInstructorSelect(null);
+}
+
+function openNuevaClase() {
+  _resetClaseForm({ master: false });
   document.getElementById('claseFormOverlay').classList.add('show');
+  _prepareClaseForm();
+}
+
+function openNuevaMasterClass() {
+  _resetClaseForm({ master: true });
+  document.getElementById('claseFormOverlay').classList.add('show');
+  _prepareClaseForm();
 }
 
 function openEditarClase(id) {
   const c = clasesAdminData.find(x => x.id === id);
   if (!c) return;
+  _resetClaseForm({ master: c.masterClass });
   document.getElementById('claseFormId').value          = c.id;
-  document.getElementById('claseFormTitle').textContent = 'Editar clase';
+  document.getElementById('claseFormTitle').textContent = c.masterClass ? 'Editar Master Class' : 'Editar clase';
   document.getElementById('claseFormTipo').value        = c.tipo;
-  document.getElementById('claseFormDia').value         = c.diaSemana;
+  if (c.masterClass) {
+    document.getElementById('claseFormMasterDia').value = c.diaSemana;
+  } else {
+    document.getElementById('claseFormDia').value       = c.diaSemana;
+  }
   document.getElementById('claseFormHora').value        = c.hora;
-  document.getElementById('claseFormCupo').value        = c.cupoTotal;
-  document.getElementById('claseFormAlert').textContent = '';
+  clearModalAlert('claseFormAlert');
+  document.getElementById('claseFormMasterNote').style.display = 'none';
   _populateInstructorSelect(c.instructorId);
   document.getElementById('claseFormOverlay').classList.add('show');
+  _prepareClaseForm().then(() => {
+    if (c.cupoTotal !== parseInt(document.getElementById('claseFormCupo').value, 10)) {
+      const hintEl = document.getElementById('claseFormCupoHint');
+      hintEl.textContent += ' Al guardar se usará la capacidad actual del estudio.';
+    }
+  });
 }
 
 function _populateInstructorSelect(selectedId) {
@@ -1501,23 +1703,30 @@ function _populateInstructorSelect(selectedId) {
 }
 
 async function doGuardarClase() {
-  const alertEl = document.getElementById('claseFormAlert');
-  const id       = document.getElementById('claseFormId').value;
-  const hora     = document.getElementById('claseFormHora').value.trim();
+  const id = document.getElementById('claseFormId').value;
 
-  if (!/^\d{2}:\d{2}$/.test(hora)) {
-    alertEl.textContent = 'La hora debe tener formato HH:mm (ej. 06:00)';
+  try {
+    await _loadEquipoCapacidad();
+  } catch(e) {
+    _setClaseFormError('No se pudo validar la capacidad del estudio.');
     return;
   }
 
+  const validated = _validateClaseForm();
+  if (!validated) return;
+
+  const isMaster = document.getElementById('claseFormMaster').value === '1';
   const body = {
-    tipo:         document.getElementById('claseFormTipo').value,
-    diaSemana:    document.getElementById('claseFormDia').value,
-    hora,
+    tipo:         validated.tipo,
+    diaSemana:    isMaster
+      ? document.getElementById('claseFormMasterDia').value
+      : document.getElementById('claseFormDia').value,
+    hora:         validated.hora,
     instructorId: document.getElementById('claseFormInstructor').value
                     ? parseInt(document.getElementById('claseFormInstructor').value)
                     : null,
-    cupoTotal:    parseInt(document.getElementById('claseFormCupo').value)
+    cupoTotal:    validated.cupoTotal,
+    masterClass:  isMaster
   };
 
   try {
@@ -1533,11 +1742,13 @@ async function doGuardarClase() {
     closeClaseForm();
     renderClasesAdmin();
     buildAgenda();
-    showToast(id ? 'Clase actualizada' : 'Clase creada',
-              `${result.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'} ${result.hora} — ${result.diaSemana}`,
+    showToast(id ? 'Clase actualizada' : (isMaster ? 'Master Class creada' : 'Clase creada'),
+              isMaster && !id
+                ? `${result.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'} ${result.hora} — ${DIA_LABEL[result.diaSemana]}. Actívala para mostrarla en el calendario.`
+                : `${result.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'} ${result.hora} — ${DIA_LABEL[result.diaSemana] || result.diaSemana}`,
               'success');
   } catch(e) {
-    alertEl.textContent = e.message;
+    _setClaseFormError(e.message);
   }
 }
 
@@ -1768,7 +1979,7 @@ function seleccionarPaquete(paqueteId, numClases, precio) {
       <div class="pago-plan-precio">$${Number(info.precio).toLocaleString('es-MX')}<span class="pago-plan-moneda"> MXN</span></div>
     </div>`;
 
-  document.getElementById('pagoAlert').textContent = '';
+  clearModalAlert('pagoAlert');
   document.getElementById('pagoOverlay').classList.add('show');
 }
 
@@ -1778,14 +1989,13 @@ function solicitarConfirmacionPago() {
   const anio    = document.getElementById('pagoAnio').value.trim();
   const cvv     = document.getElementById('pagoCVV').value.trim();
   const titular = document.getElementById('pagoTitular').value.trim();
-  const alertEl = document.getElementById('pagoAlert');
-  alertEl.textContent = '';
+  clearModalAlert('pagoAlert');
 
   if (!numero || !mes || !anio || !cvv || !titular) {
-    alertEl.textContent = 'Completa todos los campos de la tarjeta.';
+    showModalAlert('pagoAlert', 'Completa todos los campos de la tarjeta.');
     return;
   }
-  if (numero.length < 15) { alertEl.textContent = 'Número de tarjeta inválido.'; return; }
+  if (numero.length < 15) { showModalAlert('pagoAlert', 'Número de tarjeta inválido.'); return; }
 
   const paqueteId = parseInt(document.getElementById('pendingPaqueteId').value);
   const info = _PAQUETES_INFO[paqueteId] || {};
@@ -1814,20 +2024,19 @@ function procesarPago() {
   const anio     = document.getElementById('pagoAnio').value.trim();
   const cvv      = document.getElementById('pagoCVV').value.trim();
   const titular  = document.getElementById('pagoTitular').value.trim();
-  const alertEl  = document.getElementById('pagoAlert');
-  alertEl.textContent = '';
+  clearModalAlert('pagoAlert');
 
   if (!numero || !mes || !anio || !cvv || !titular) {
-    alertEl.textContent = 'Completa todos los campos de la tarjeta.';
+    showModalAlert('pagoAlert', 'Completa todos los campos de la tarjeta.');
     return;
   }
-  if (numero.length < 15) { alertEl.textContent = 'Número de tarjeta inválido.'; return; }
+  if (numero.length < 15) { showModalAlert('pagoAlert', 'Número de tarjeta inválido.'); return; }
 
   const btn = document.getElementById('pagoBtnConfirmar');
   btn.disabled = true; btn.textContent = 'Procesando...';
 
   if (typeof OpenPay === 'undefined') {
-    alertEl.textContent = 'El módulo de pagos no está disponible. Intenta recargar la página.';
+    showModalAlert('pagoAlert', 'El módulo de pagos no está disponible. Intenta recargar la página.');
     btn.disabled = false; btn.textContent = 'Confirmar y pagar';
     return;
   }
@@ -1837,7 +2046,7 @@ function procesarPago() {
     || document.getElementById('deviceSessionId').value;
   if (!deviceSessionId) {
     initOpenpay();
-    alertEl.textContent = 'Preparando módulo de seguridad, intenta de nuevo en unos segundos.';
+    showModalAlert('pagoAlert', 'Preparando módulo de seguridad, intenta de nuevo en unos segundos.');
     btn.disabled = false; btn.textContent = 'Confirmar y pagar';
     return;
   }
@@ -1856,7 +2065,6 @@ async function _onOpenpayTokenSuccess(response) {
   const deviceSessionId = _openpayDeviceSessionId
     || document.getElementById('deviceSessionId').value;
   const paqueteId       = parseInt(document.getElementById('pendingPaqueteId').value);
-  const alertEl         = document.getElementById('pagoAlert');
 
   try {
     const result = await api('POST', '/pagos/paquete', { paqueteId, tokenId, deviceSessionId });
@@ -1884,16 +2092,15 @@ async function _onOpenpayTokenSuccess(response) {
     document.getElementById('pagoSuccessPanel').style.display = 'block';
     document.getElementById('pagoSuccessActions').style.display = 'block';
   } catch(e) {
-    alertEl.textContent = e.message;
+    showModalAlert('pagoAlert', e.message);
     const btn = document.getElementById('pagoBtnConfirmar');
     btn.disabled = false; btn.textContent = 'Confirmar y pagar';
   }
 }
 
 function _onOpenpayTokenError(response) {
-  const alertEl = document.getElementById('pagoAlert');
   const desc = response.data?.description || 'Error al procesar la tarjeta.';
-  alertEl.textContent = desc;
+  showModalAlert('pagoAlert', desc);
   cancelarConfirmacionPago();
   const btn = document.getElementById('pagoBtnConfirmar');
   btn.disabled = false; btn.textContent = 'Confirmar y pagar';
@@ -2183,7 +2390,7 @@ function openPaqueteForm(id) {
   editingPaqueteId = id;
   const wrap = document.getElementById('gpaqFormWrap');
   document.getElementById('gpaqFormAlert').textContent = '';
-  document.getElementById('gpaqFormAlert').classList.remove('show');
+  clearModalAlert('gpaqFormAlert');
 
   if (id === null) {
     document.getElementById('gpaqFormTitle').textContent = 'Nuevo paquete';
@@ -2221,13 +2428,12 @@ function savePaquete() {
   const precio     = parseFloat(document.getElementById('gpaqPrecio').value);
   const vigencia   = parseInt(document.getElementById('gpaqVigencia').value);
   const esMensual  = document.getElementById('gpaqEsMensual').checked;
-  const alertEl    = document.getElementById('gpaqFormAlert');
 
-  alertEl.classList.remove('show');
-  if (!nombre)            { alertEl.textContent = 'El nombre es obligatorio.';         alertEl.classList.add('show'); return; }
-  if (!numClases || numClases < 1) { alertEl.textContent = 'Número de clases inválido.'; alertEl.classList.add('show'); return; }
-  if (!precio || precio <= 0)      { alertEl.textContent = 'El precio debe ser mayor a 0.'; alertEl.classList.add('show'); return; }
-  if (!vigencia || vigencia < 1)   { alertEl.textContent = 'La vigencia debe ser al menos 1 día.'; alertEl.classList.add('show'); return; }
+  clearModalAlert('gpaqFormAlert');
+  if (!nombre)            { showModalAlert('gpaqFormAlert', 'El nombre es obligatorio.'); return; }
+  if (!numClases || numClases < 1) { showModalAlert('gpaqFormAlert', 'Número de clases inválido.'); return; }
+  if (!precio || precio <= 0)      { showModalAlert('gpaqFormAlert', 'El precio debe ser mayor a 0.'); return; }
+  if (!vigencia || vigencia < 1)   { showModalAlert('gpaqFormAlert', 'La vigencia debe ser al menos 1 día.'); return; }
 
   const accion = editingPaqueteId ? 'actualizar' : 'crear';
   showConfirm(
@@ -2240,7 +2446,6 @@ function savePaquete() {
 }
 
 async function _execSavePaquete(body) {
-  const alertEl = document.getElementById('gpaqFormAlert');
   try {
     if (editingPaqueteId) {
       await api('PUT', `/admin/paquetes/${editingPaqueteId}`, body);
@@ -2252,8 +2457,7 @@ async function _execSavePaquete(body) {
     await loadPaquetes();
     showToast('Paquete guardado', 'Los cambios se aplicaron correctamente.', 'success');
   } catch(e) {
-    alertEl.textContent = e.message;
-    alertEl.classList.add('show');
+    showModalAlert('gpaqFormAlert', e.message);
   }
 }
 
@@ -2314,6 +2518,7 @@ async function openEquipo() {
   document.getElementById('equipoOverlay').classList.add('show');
   try {
     const lista = await api('GET', '/admin/equipo');
+    _invalidateEquipoCapacidad();
     _renderEquipoList(lista);
   } catch(e) {
     document.getElementById('equipoAlert').textContent = e.message;
@@ -2453,6 +2658,7 @@ async function guardarEquipo(tipo) {
       `${result.nombre}: ${result.disponibles} de ${result.cantidad} disponibles. ${result.clasesAfectadas} clase${result.clasesAfectadas !== 1 ? 's' : ''} actualizada${result.clasesAfectadas !== 1 ? 's' : ''}.`,
       'success');
     const lista = await api('GET', '/admin/equipo');
+    _invalidateEquipoCapacidad();
     _renderEquipoList(lista);
     buildAgenda();
     loadCapacidad();
@@ -2488,6 +2694,7 @@ async function _doToggleEquipoDeshabilitado(tipo, numero, actuales) {
   try {
     const result = await api('PUT', `/admin/equipo/${tipo}/deshabilitados`, { deshabilitados });
     const lista = await api('GET', '/admin/equipo');
+    _invalidateEquipoCapacidad();
     _renderEquipoList(lista);
     showToast('Equipo actualizado',
       `${result.nombre}: ${result.deshabilitados.length} unidad${result.deshabilitados.length !== 1 ? 'es' : ''} en mantenimiento.`,
@@ -2566,7 +2773,7 @@ function openNuevoInstructor() {
   document.getElementById('instFotoImg').style.display = 'none';
   document.getElementById('instFotoImg').src = '';
   document.getElementById('instFotoInitial').textContent = '?';
-  document.getElementById('instFormAlert').textContent = '';
+  clearModalAlert('instFormAlert');
   document.getElementById('instructorFormOverlay').classList.add('show');
 }
 
@@ -2582,7 +2789,7 @@ function openEditarInstructor(id) {
   document.getElementById('instEspPilates').checked = (inst.especialidades||[]).includes('PILATES');
   document.getElementById('instFormBio').value = inst.bio || '';
   document.getElementById('instFormFoto').value = '';
-  document.getElementById('instFormAlert').textContent = '';
+  clearModalAlert('instFormAlert');
   const img = document.getElementById('instFotoImg');
   const ini = document.getElementById('instFotoInitial');
   if (inst.fotoUrl) {
@@ -2613,7 +2820,7 @@ function previewFoto(input) {
 function guardarInstructor() {
   const nombre = document.getElementById('instFormNombre').value.trim();
   if (!nombre) {
-    document.getElementById('instFormAlert').textContent = 'El nombre es obligatorio.';
+    showModalAlert('instFormAlert', 'El nombre es obligatorio.');
     return;
   }
   showConfirm(
@@ -2635,7 +2842,7 @@ async function _execGuardarInstructor() {
   const fotoInput    = document.getElementById('instFormFoto');
 
   if (!especialidades.length) {
-    document.getElementById('instFormAlert').textContent = 'Selecciona al menos una disciplina.';
+    showModalAlert('instFormAlert', 'Selecciona al menos una disciplina.');
     return;
   }
 
@@ -2669,7 +2876,7 @@ async function _execGuardarInstructor() {
     closeInstructorForm();
     showToast('Instructor guardado', `${instructor.nombre} ${instructor.apellido} actualizado.`, '');
   } catch(e) {
-    document.getElementById('instFormAlert').textContent = e.message;
+    showModalAlert('instFormAlert', e.message);
   }
 }
 
@@ -2724,10 +2931,12 @@ function instFormOverlayClick(e) {
 let toastTimer;
 function showToast(title, msg = '', type = '') {
   const t = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  t.classList.remove('show');
   document.getElementById('toastTitle').textContent = title;
   document.getElementById('toastMsg').textContent   = msg;
-  t.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(toastTimer);
+  t.className = 'toast' + (type ? ' ' + type : '');
+  requestAnimationFrame(() => t.classList.add('show'));
   toastTimer = setTimeout(() => t.classList.remove('show'), 3800);
 }
 
@@ -3078,10 +3287,10 @@ async function _recargarEspacios() {
 
 function _renderEspWeekLabel() {
   const monday = getMonday(espaciosOffset);
-  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
-  const fmtD   = d => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-  document.getElementById('espWeekLabel').textContent =
-    `${fmtD(monday)} — ${fmtD(friday)} ${friday.getFullYear()}`;
+  const tipoBuscar = espaciosDisc === 'CYCLING' ? 'SPINNING' : 'PILATES';
+  const clases = _espaciosData.filter(c => c.tipo === tipoBuscar);
+  const calendarDays = buildCalendarDays(clases, false);
+  document.getElementById('espWeekLabel').textContent = formatWeekRangeLabel(monday, calendarDays);
   document.getElementById('espPrevBtn').disabled = espaciosOffset <= 0;
 }
 
@@ -3108,7 +3317,7 @@ function _espClaseYaTermino(hora) {
 function _renderEspacios() {
   const body      = document.getElementById('espCalBody');
   const tipoBuscar = espaciosDisc === 'CYCLING' ? 'SPINNING' : 'PILATES';
-  const clases    = _espaciosData.filter(c => c.tipo === tipoBuscar && c.diaSemana in DIA_LABEL);
+  const clases    = _espaciosData.filter(c => c.tipo === tipoBuscar);
 
   if (!clases.length) {
     const label = espaciosDisc === 'CYCLING' ? 'Indoor Cycling' : 'Pilates';
@@ -3116,18 +3325,20 @@ function _renderEspacios() {
     return;
   }
 
+  const calendarDays = buildCalendarDays(clases, false);
   const horas    = [...new Set(clases.map(c => c.hora))].sort();
   const monday   = getMonday(espaciosOffset);
   const todayMs  = new Date().setHours(0, 0, 0, 0);
-  const colDates = DIAS_ORDEN.map((_, i) => {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
+  const colDates = calendarDays.map(dia => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + DIA_IDX[dia]);
     const dMs = d.getTime();
     return { num: d.getDate(), isPast: dMs < todayMs, isToday: dMs === todayMs };
   });
 
-  let html = '<div class="admin-cal-grid">';
+  let html = `<div class="admin-cal-grid" style="grid-template-columns:64px repeat(${calendarDays.length},minmax(90px,1fr))">`;
   html += '<div class="aw-corner"></div>';
-  DIAS_ORDEN.forEach((dia, i) => {
+  calendarDays.forEach((dia, i) => {
     html += `<div class="aw-day${colDates[i].isPast ? ' day-past' : ''}">
       <span class="aw-day-name">${DIA_LABEL[dia]}</span>
       <span class="aw-day-num">${colDates[i].num}</span>
@@ -3136,7 +3347,7 @@ function _renderEspacios() {
 
   horas.forEach(hora => {
     html += `<div class="aw-time">${hora.replace(/^0/, '')}</div>`;
-    DIAS_ORDEN.forEach((dia, i) => {
+    calendarDays.forEach((dia, i) => {
       const cls = clases.find(c => c.hora === hora && c.diaSemana === dia);
       if (cls) {
         const key = `${cls.claseId}_${cls.fecha}`;
@@ -3156,10 +3367,20 @@ function _renderEspacios() {
 function _renderEspPill(c, key, isPast) {
   const isSpin = c.tipo === 'SPINNING';
   const tipo   = isSpin ? 'spin' : 'pilates';
+  const instStr = c.instructor || 'Sin asignar';
+
+  if (c.sesionCancelada) {
+    return `<div class="admin-pill ${tipo} inactiva esp-pill esp-pill-cancelada" onclick="_espAbrirDetalle('${key}')">
+      <span class="ap-nombre">${isSpin ? 'Indoor Cycling' : 'Pilates'}</span>
+      <span class="ap-inst">${instStr}</span>
+      <span class="esp-cupo-line esp-cupo-llena">CANCELADA</span>
+      <span class="esp-ver-label" style="opacity:.6">Ver detalle →</span>
+    </div>`;
+  }
+
   const libres = c.lugaresDisponibles;
   const cupoStr = c.llena ? 'LLENO' : `${libres} libre${libres !== 1 ? 's' : ''}`;
   const cupoClass = c.llena ? 'esp-cupo-llena' : libres <= 2 ? 'esp-cupo-casi' : 'esp-cupo-ok';
-  const instStr = c.instructor || 'Sin asignar';
 
   if (isPast) {
     return `<div class="admin-pill ${tipo} inactiva esp-pill esp-pill-past" onclick="_espAbrirDetalle('${key}')">
@@ -3215,17 +3436,20 @@ function _espAbrirDetalle(key) {
     .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
   const titulo = fechaFmt.charAt(0).toUpperCase() + fechaFmt.slice(1);
   const libres = c.lugaresDisponibles;
-  const badgeCls = c.llena ? 'esp-badge-llena' : libres <= 2 ? 'esp-badge-casi' : 'esp-badge-ok';
-  const cupoStr = `${c.cupoTomado}/${c.cupoTotal} ocupados · ${libres} libre${libres !== 1 ? 's' : ''}`;
   const enCursoTag  = _espClaseEnCurso ? '<span class="esp-en-curso-badge">EN CURSO</span>' : '';
   const pasadaTag   = _espClaseEsPasada && !_espClaseEnCurso ? '<span class="esp-en-curso-badge" style="background:var(--stone)">PASADA</span>' : '';
+  const canceladaTag = c.sesionCancelada ? '<span class="esp-en-curso-badge" style="background:var(--danger)">CANCELADA</span>' : '';
+  const cupoStr = c.sesionCancelada
+    ? 'Clase cancelada · sin reservaciones'
+    : `${c.cupoTomado}/${c.cupoTotal} ocupados · ${libres} libre${libres !== 1 ? 's' : ''}`;
+  const badgeCls = c.sesionCancelada ? 'esp-badge-llena' : c.llena ? 'esp-badge-llena' : libres <= 2 ? 'esp-badge-casi' : 'esp-badge-ok';
   const ocupadoHint = _espClaseEsPasada
     ? '<span class="esp-legend-item esp-legend-liberar"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · click para ver</span>'
     : '<span class="esp-legend-item esp-legend-liberar"><span class="esp-legend-dot esp-ld-ocu"></span>Ocupado · click para ver / liberar</span>';
 
   document.getElementById('espDetailHeader').innerHTML = `
     <div class="esp-detail-info">
-      <div class="esp-detail-tipo">${c.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'}${enCursoTag}${pasadaTag}</div>
+      <div class="esp-detail-tipo">${c.tipo === 'SPINNING' ? 'Indoor Cycling' : 'Pilates'}${enCursoTag}${pasadaTag}${canceladaTag}</div>
       <div class="esp-detail-meta">${titulo} · ${c.hora.replace(/^0/, '')} h${c.instructor ? ` · ${c.instructor}` : ''}</div>
       <div class="esp-detail-cupo"><span class="${badgeCls}">${cupoStr}</span></div>
     </div>
@@ -3264,7 +3488,8 @@ function _espAbrirDetalle(key) {
 
   document.getElementById('espDetailSinLugar').innerHTML = sinLugarHtml + canceladasHtml;
 
-  document.getElementById('espCancelarClaseBtn').style.display = _espClaseEsPasada ? 'none' : 'inline-flex';
+  document.getElementById('espCancelarClaseBtn').style.display =
+    (_espClaseEsPasada || c.sesionCancelada) ? 'none' : 'inline-flex';
 
   document.getElementById('espCalView').style.display    = 'none';
   document.getElementById('espDetailView').style.display = 'block';
@@ -3279,8 +3504,8 @@ function _espCancelarClase() {
     .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
   const reservadas = c.cupoTomado;
   const detalle = reservadas > 0
-    ? `Se cancelarán ${reservadas} reservación(es). Cada cliente recuperará su crédito y se extenderá 1 día la fecha de vencimiento de sus créditos de ${label}.`
-    : 'Esta clase no tiene reservaciones confirmadas.';
+    ? `Se cancelarán ${reservadas} reservación(es). Cada cliente recuperará su crédito y se extenderá 1 día la fecha de vencimiento de sus créditos de ${label}. La clase quedará deshabilitada para nuevas reservaciones.`
+    : 'La clase quedará deshabilitada para esa fecha y no aceptará nuevas reservaciones.';
 
   showConfirm(
     'Cancelar clase',
