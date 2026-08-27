@@ -1913,6 +1913,56 @@ input::placeholder{color:var(--stone-pale)}
 .rpt-page-btn:hover:not([disabled]){background:var(--accent-pale)}
 .rpt-page-btn[disabled]{opacity:.35;cursor:default}
 
+/* Clientes activos del mes */
+.rpt-mes-nav{
+  display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px;
+}
+.rpt-mes-label{
+  font-family:var(--ff-serif);font-size:17px;color:var(--black);
+  min-width:180px;text-align:center;text-transform:capitalize;
+}
+.rpt-clientes-mes-wrap{display:flex;flex-direction:column;gap:14px;margin-top:16px;max-height:52vh;overflow-y:auto;padding-right:4px}
+.rpt-demanda-badge{
+  display:inline-block;min-width:28px;text-align:center;padding:2px 8px;border-radius:20px;
+  background:var(--cream);font-size:12px;font-weight:600;color:var(--stone);
+}
+.rpt-demanda-badge.alta{background:var(--accent-pale);color:var(--accent-dark)}
+.cm-card{
+  border:1px solid var(--border);border-radius:8px;padding:16px 18px;background:var(--white);
+}
+.cm-card-head{
+  display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
+  padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);
+}
+.cm-nombre{font-family:var(--ff-serif);font-size:17px;color:var(--black)}
+.cm-email{font-size:12px;color:var(--stone);margin-top:2px}
+.cm-creditos{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--stone);text-align:right}
+.cm-section{margin-top:10px}
+.cm-section-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cm-section-title{
+  font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--stone);margin-bottom:8px;
+}
+.cm-hint{font-weight:400;text-transform:none;letter-spacing:0;font-size:10px}
+.cm-pago-item{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);
+}
+.cm-pago-item:last-child{border-bottom:none}
+.cm-pago-meta{font-size:11px;color:var(--stone);margin-left:auto}
+.cm-slots{display:flex;flex-wrap:wrap;gap:6px}
+.cm-slot{
+  display:inline-block;padding:5px 10px;border-radius:20px;font-size:11px;line-height:1.35;
+}
+.cm-slot-reserva{background:#eef4ff;color:#2255cc;border:1px solid #d0dff8}
+.cm-slot-hab{background:var(--accent-pale);color:var(--accent-dark);border:1px solid var(--accent-light)}
+.cm-slot-empty{background:var(--cream);color:var(--stone-light);border:1px dashed var(--border)}
+@media(max-width:700px){
+  .cm-section-cols{grid-template-columns:1fr}
+  .cm-creditos{text-align:left}
+  .cm-pago-meta{margin-left:0;width:100%}
+}
+
 /* ═══════════════════════════════════════════
    MODALES LEGALES Y CONTACTO
 ═══════════════════════════════════════════ */

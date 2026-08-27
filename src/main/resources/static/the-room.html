@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap"/></noscript>
-<link rel="stylesheet" href="styles.css?v=29"/>
+<link rel="stylesheet" href="styles.css?v=30"/>
 </head>
 <body>
 
@@ -1120,6 +1120,33 @@
   </div>
 </div>
 
+<!-- MODAL CLIENTES ACTIVOS DEL MES (Admin) -->
+<div class="overlay" id="clientesMesOverlay" onclick="clientesMesOverlayClick(event)">
+  <div class="modal modal-lg">
+    <button class="modal-close" onclick="closeClientesMes()">✕</button>
+    <div class="modal-logo">The <em>Room</em></div>
+    <h2 class="modal-title">Clientes activos del mes</h2>
+    <p class="modal-sub">Clientes con cuenta activa que pagaron en el mes · horarios reservados y preferidos</p>
+    <div class="rpt-mes-nav">
+      <button type="button" class="week-nav-btn" onclick="clientesMesPrev()" aria-label="Mes anterior">&#8592;</button>
+      <span class="rpt-mes-label" id="clientesMesLabel"></span>
+      <button type="button" class="week-nav-btn" id="clientesMesNextBtn" onclick="clientesMesNext()" aria-label="Mes siguiente">&#8594;</button>
+    </div>
+    <div class="ec-disc-pills" id="clientesMesPills">
+      <button class="ec-pill active" onclick="setClientesMesDisc('ALL', this)">Todos</button>
+      <button class="ec-pill" onclick="setClientesMesDisc('CYCLING', this)">Indoor Cycling</button>
+      <button class="ec-pill" onclick="setClientesMesDisc('PILATES', this)">Pilates</button>
+    </div>
+    <div class="rpt-search-row">
+      <input type="text" id="clientesMesBuscar" class="form-input" placeholder="Buscar por nombre o email…" oninput="_filtrarClientesMes()"/>
+    </div>
+    <div class="rpt-resumen" id="clientesMesResumen"></div>
+    <div id="clientesMesDemanda" class="rpt-table-wrap"></div>
+    <div id="clientesMesBody" class="rpt-clientes-mes-wrap"></div>
+    <div class="rpt-footer" id="clientesMesFooter"></div>
+  </div>
+</div>
+
 <!-- MODAL AVISO DE PRIVACIDAD -->
 <div class="overlay" id="privacidadOverlay" onclick="if(event.target===this)closePrivacidad()">
   <div class="modal modal-md">
@@ -1265,6 +1292,6 @@
 
 <script defer src="https://js.openpay.mx/openpay.v1.min.js"></script>
 <script defer src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
-<script defer src="main.js?v=27"></script>
+<script defer src="main.js?v=28"></script>
 </body>
 </html>
