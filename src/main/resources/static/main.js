@@ -3300,12 +3300,31 @@ function _filtrarClientesMes() {
   _renderClientesMes();
 }
 
+function _cmMetodoLabel(m) {
+  return { TARJETA: 'Tarjeta en línea', EFECTIVO: 'Efectivo', PAYPAL: 'PayPal' }[m] || m;
+}
+
+function _cmNivelDemanda(indice) {
+  if (indice >= 8) return { label: 'Alta', cls: 'alta', hint: 'Mucha afluencia — vale la pena evaluar otro horario similar' };
+  if (indice >= 4) return { label: 'Media', cls: 'media', hint: 'Demanda moderada — conviene monitorear' };
+  return { label: 'Baja', cls: 'baja', hint: 'Poca concentración de clientes en este horario' };
+}
+
+function _cmDiaLargo(dia) {
+  const map = {
+    LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves',
+    VIERNES: 'Viernes', SABADO: 'Sábado', DOMINGO: 'Domingo'
+  };
+  return map[dia] || dia;
+}
+
 async function _cargarClientesMes() {
   document.getElementById('clientesMesResumen').innerHTML = '';
   document.getElementById('clientesMesDemanda').innerHTML = '';
   document.getElementById('clientesMesBody').innerHTML = '<p style="text-align:center;padding:32px;color:var(--stone)">Cargando…</p>';
   document.getElementById('clientesMesFooter').textContent = '';
   document.getElementById('clientesMesLabel').textContent = '…';
+  document.getElementById('clientesMesListaTitulo').style.display = 'none';
 
   const hoy = new Date();
   const esActual = _clientesMesAnio === hoy.getFullYear() && _clientesMesMes === (hoy.getMonth() + 1);
@@ -3343,28 +3362,33 @@ function _renderClientesMes() {
     return `${d}/${m}/${y}`;
   };
   const discTag = d => d === 'CYCLING'
-    ? '<span class="rpt-tag rpt-tag-cyc">Cycling</span>'
+    ? '<span class="rpt-tag rpt-tag-cyc">Indoor Cycling</span>'
     : '<span class="rpt-tag rpt-tag-pil">Pilates</span>';
   const tipoLabel = t => t === 'SPINNING' ? 'Indoor Cycling' : 'Pilates';
-  const horaSlot = (dia, hora) => `${DIA_LABEL[dia] || dia} ${(hora || '').replace(/^0/, '')}`;
+  const horaSlotLargo = (dia, hora) => `${_cmDiaLargo(dia)} ${(hora || '').replace(/^0/, '')}`;
 
   document.getElementById('clientesMesResumen').innerHTML = `
-    <div class="rpt-kpi-row">
+    <div class="cm-bloque-titulo">1 · Resumen del mes</div>
+    <div class="rpt-kpi-row cm-kpi-row">
       <div class="rpt-kpi rpt-kpi-total">
         <div class="rpt-kpi-val">${clientes.length}</div>
-        <div class="rpt-kpi-lbl">Clientes activos pagadores</div>
+        <div class="rpt-kpi-lbl">Clientes que pagaron</div>
+        <div class="rpt-kpi-desc">Cuenta activa con al menos un pago en ${_clientesMesData.mesLabel}</div>
       </div>
       <div class="rpt-kpi">
         <div class="rpt-kpi-val">${_clientesMesData.totalCycling}</div>
-        <div class="rpt-kpi-lbl">Pagaron Cycling</div>
+        <div class="rpt-kpi-lbl">Pagaron Indoor Cycling</div>
+        <div class="rpt-kpi-desc">Compraron paquete de cycling este mes</div>
       </div>
       <div class="rpt-kpi">
         <div class="rpt-kpi-val">${_clientesMesData.totalPilates}</div>
         <div class="rpt-kpi-lbl">Pagaron Pilates</div>
+        <div class="rpt-kpi-desc">Compraron paquete de pilates este mes</div>
       </div>
       <div class="rpt-kpi rpt-kpi-total">
         <div class="rpt-kpi-val">${fmt(_clientesMesData.totalCobrado)}</div>
-        <div class="rpt-kpi-lbl">Cobrado en el mes</div>
+        <div class="rpt-kpi-lbl">Total cobrado</div>
+        <div class="rpt-kpi-desc">Suma de todos los pagos del mes (MXN)</div>
       </div>
     </div>`;
 
@@ -3372,97 +3396,140 @@ function _renderClientesMes() {
     if (_clientesMesDisc === 'ALL') return true;
     const tipo = _clientesMesDisc === 'CYCLING' ? 'SPINNING' : 'PILATES';
     return d.tipoClase === tipo;
-  }).slice(0, 12);
+  }).slice(0, 10);
 
   document.getElementById('clientesMesDemanda').innerHTML = demanda.length ? `
-    <div class="rpt-seccion">
-      <div class="rpt-seccion-header">
-        <strong>Demanda por horario</strong>
-        <span class="rpt-footer-count">Para evaluar nuevos horarios</span>
+    <div class="rpt-seccion cm-demanda-seccion">
+      <div class="cm-bloque-titulo">2 · Horarios más solicitados</div>
+      <p class="cm-bloque-desc">Ordenados de mayor a menor demanda. Si un horario aparece como <b>Alta</b>, muchos clientes activos ya lo reservaron o suelen venir ahí — puede ser señal para habilitar una clase extra.</p>
+      <div class="cm-demanda-grid">
+        ${demanda.map(d => {
+          const nivel = _cmNivelDemanda(d.indiceDemanda);
+          const disc = d.tipoClase === 'SPINNING' ? 'CYCLING' : 'PILATES';
+          return `
+            <div class="cm-demanda-card">
+              <div class="cm-demanda-card-top">
+                <div>
+                  <div class="cm-demanda-hora">${horaSlotLargo(d.diaSemana, d.hora)}</div>
+                  ${discTag(disc)}
+                </div>
+                <span class="cm-demanda-nivel ${nivel.cls}">${nivel.label}</span>
+              </div>
+              <div class="cm-demanda-stats">
+                <div class="cm-demanda-stat">
+                  <span class="cm-demanda-stat-val">${d.clientesConReserva}</span>
+                  <span class="cm-demanda-stat-lbl">Con clase ya agendada</span>
+                  <span class="cm-demanda-stat-hint">Tienen reserva confirmada próxima</span>
+                </div>
+                <div class="cm-demanda-stat">
+                  <span class="cm-demanda-stat-val">${d.clientesHabituales}</span>
+                  <span class="cm-demanda-stat-lbl">Suelen elegir este horario</span>
+                  <span class="cm-demanda-stat-hint">Basado en reservas de los últimos 3 meses</span>
+                </div>
+              </div>
+              <div class="cm-demanda-nota">${nivel.hint}</div>
+            </div>`;
+        }).join('')}
       </div>
-      <table class="rpt-table">
-        <thead><tr>
-          <th>Horario</th>
-          <th>Disciplina</th>
-          <th>Con reserva</th>
-          <th>Habitual</th>
-          <th>Índice</th>
-        </tr></thead>
-        <tbody>
-          ${demanda.map(d => `
-            <tr>
-              <td><strong>${horaSlot(d.diaSemana, d.hora)}</strong></td>
-              <td>${discTag(d.tipoClase === 'SPINNING' ? 'CYCLING' : 'PILATES')}</td>
-              <td>${d.clientesConReserva}</td>
-              <td>${d.clientesHabituales}</td>
-              <td><span class="rpt-demanda-badge${d.indiceDemanda >= 6 ? ' alta' : ''}">${d.indiceDemanda}</span></td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>` : '';
+    </div>` : `
+    <div class="rpt-seccion cm-demanda-seccion">
+      <div class="cm-bloque-titulo">2 · Horarios más solicitados</div>
+      <p class="cm-bloque-desc cm-vacio">Aún no hay suficientes reservas para mostrar demanda por horario en este mes.</p>
+    </div>`;
 
   const body = document.getElementById('clientesMesBody');
   const footer = document.getElementById('clientesMesFooter');
+  const listaTitulo = document.getElementById('clientesMesListaTitulo');
 
   if (!clientes.length) {
-    body.innerHTML = '<p style="text-align:center;padding:32px;color:var(--stone)">Sin clientes activos con pago en este mes.</p>';
+    listaTitulo.style.display = 'none';
+    body.innerHTML = '<p class="cm-vacio">No hay clientes activos con pago en este mes con los filtros seleccionados.</p>';
     footer.textContent = '';
     return;
   }
 
-  body.innerHTML = clientes.map(c => {
+  listaTitulo.style.display = '';
+  listaTitulo.textContent = `3 · Detalle por cliente (${clientes.length})`;
+
+  body.innerHTML = clientes.map((c, idx) => {
     const pagosHtml = c.pagosMes.map(p => `
       <div class="cm-pago-item">
-        ${discTag(p.disciplina)}
-        <span>${p.paqueteNombre}${p.esMensual ? ' · <em>Mensual</em>' : ''}</span>
-        <span class="cm-pago-meta">${p.fechaPago} · ${fmt(p.monto)} · ${p.metodo}</span>
+        <div class="cm-pago-main">
+          ${discTag(p.disciplina)}
+          <span class="cm-pago-nombre">${p.paqueteNombre}${p.esMensual ? ' <em class="cm-pago-mensual">Paquete mensual</em>' : ''}</span>
+        </div>
+        <div class="cm-pago-detalle">
+          <span>Pagó el <b>${p.fechaPago.split(' ')[0]}</b></span>
+          <span>Monto: <b>${fmt(p.monto)}</b></span>
+          <span>Forma de pago: <b>${_cmMetodoLabel(p.metodo)}</b></span>
+        </div>
       </div>`).join('');
 
     const reservasHtml = c.reservasProximas.length
-      ? c.reservasProximas.map(r => `
-          <span class="cm-slot cm-slot-reserva">
-            ${fmtFecha(r.fecha)} · ${horaSlot(r.diaSemana, r.hora)} · ${tipoLabel(r.tipoClase)}
-            ${r.lugarNumero ? ` · Lugar ${r.lugarNumero}` : ''}
-          </span>`).join('')
-      : '<span class="cm-slot cm-slot-empty">Sin reservas próximas</span>';
+      ? `<ul class="cm-lista">${c.reservasProximas.map(r => `
+          <li class="cm-lista-item cm-lista-reserva">
+            <span class="cm-lista-fecha">${fmtFecha(r.fecha)}</span>
+            <span class="cm-lista-hora">${horaSlotLargo(r.diaSemana, r.hora)}</span>
+            <span class="cm-lista-tipo">${tipoLabel(r.tipoClase)}</span>
+            ${r.lugarNumero ? `<span class="cm-lista-lugar">Lugar ${r.lugarNumero}</span>` : '<span class="cm-lista-lugar cm-lista-lugar-pend">Sin lugar asignado</span>'}
+          </li>`).join('')}</ul>`
+      : '<p class="cm-vacio-inline">Este cliente no tiene clases agendadas próximamente.</p>';
 
     const habitHtml = c.horariosHabituales.length
-      ? c.horariosHabituales.map(h => `
-          <span class="cm-slot cm-slot-hab">
-            ${horaSlot(h.diaSemana, h.hora)} · ${tipoLabel(h.tipoClase)} · ${h.veces}×
-          </span>`).join('')
-      : '<span class="cm-slot cm-slot-empty">Sin historial reciente</span>';
+      ? `<ul class="cm-lista">${c.horariosHabituales.map(h => `
+          <li class="cm-lista-item cm-lista-hab">
+            <span class="cm-lista-hora">${horaSlotLargo(h.diaSemana, h.hora)}</span>
+            <span class="cm-lista-tipo">${tipoLabel(h.tipoClase)}</span>
+            <span class="cm-lista-veces">Reservó <b>${h.veces}</b> ${h.veces === 1 ? 'vez' : 'veces'} (últimos 3 meses)</span>
+          </li>`).join('')}</ul>`
+      : '<p class="cm-vacio-inline">Sin historial reciente de reservas en los últimos 3 meses.</p>';
+
+    const credCyc = c.creditosCycling > 0
+      ? `<span class="cm-credito cm-credito-ok"><b>${c.creditosCycling}</b> clases${c.creditosCyclingVencen ? ` · vence ${fmtFecha(c.creditosCyclingVencen)}` : ''}</span>`
+      : '<span class="cm-credito cm-credito-cero">Sin clases disponibles</span>';
+    const credPil = c.creditosPilates > 0
+      ? `<span class="cm-credito cm-credito-ok"><b>${c.creditosPilates}</b> clases${c.creditosPilatesVencen ? ` · vence ${fmtFecha(c.creditosPilatesVencen)}` : ''}</span>`
+      : '<span class="cm-credito cm-credito-cero">Sin clases disponibles</span>';
 
     return `
       <article class="cm-card">
         <div class="cm-card-head">
-          <div>
+          <div class="cm-card-num">${idx + 1}</div>
+          <div class="cm-card-ident">
             <div class="cm-nombre">${c.nombre} ${c.apellido}</div>
-            <div class="cm-email">${c.email}${c.telefono ? ' · ' + c.telefono : ''}</div>
+            <div class="cm-email">${c.email}${c.telefono ? ' · Tel. ' + c.telefono : ''}</div>
           </div>
-          <div class="cm-creditos">
-            <span>Cycling: <strong>${c.creditosCycling}</strong>${c.creditosCyclingVencen ? ` (vence ${fmtFecha(c.creditosCyclingVencen)})` : ''}</span>
-            <span>Pilates: <strong>${c.creditosPilates}</strong>${c.creditosPilatesVencen ? ` (vence ${fmtFecha(c.creditosPilatesVencen)})` : ''}</span>
+        </div>
+        <div class="cm-creditos-box">
+          <div class="cm-credito-row">
+            <span class="cm-credito-label">Indoor Cycling</span>
+            ${credCyc}
+          </div>
+          <div class="cm-credito-row">
+            <span class="cm-credito-label">Pilates</span>
+            ${credPil}
           </div>
         </div>
         <div class="cm-section">
-          <div class="cm-section-title">Pagos del mes</div>
+          <div class="cm-section-title">Lo que pagó este mes</div>
           ${pagosHtml}
         </div>
         <div class="cm-section cm-section-cols">
           <div>
-            <div class="cm-section-title">Próximas reservas</div>
-            <div class="cm-slots">${reservasHtml}</div>
+            <div class="cm-section-title">Clases que ya tiene agendadas</div>
+            <p class="cm-section-desc">Próximas reservas confirmadas — con esto sabes si ya cuenta con lugar.</p>
+            ${reservasHtml}
           </div>
           <div>
-            <div class="cm-section-title">Horarios habituales <span class="cm-hint">(últimos 3 meses)</span></div>
-            <div class="cm-slots">${habitHtml}</div>
+            <div class="cm-section-title">Horarios que suele elegir</div>
+            <p class="cm-section-desc">Basado en sus reservas de los últimos 3 meses — indica a qué horario le gusta venir.</p>
+            ${habitHtml}
           </div>
         </div>
       </article>`;
   }).join('');
 
-  footer.textContent = `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} · ${_clientesMesData.mesLabel}`;
+  footer.textContent = `Mostrando ${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} · ${_clientesMesData.mesLabel}`;
 }
 
 function closeClientesMes() { document.getElementById('clientesMesOverlay').classList.remove('show'); }
