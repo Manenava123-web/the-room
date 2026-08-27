@@ -31,6 +31,31 @@ public interface ReservacionRepository extends JpaRepository<Reservacion, Long> 
     @Query("SELECT r FROM Reservacion r WHERE r.usuario.id = :usuarioId AND r.fecha >= :desde AND r.estado = 'CONFIRMADA' ORDER BY r.fecha ASC")
     List<Reservacion> findProximasByUsuario(@Param("usuarioId") Long usuarioId, @Param("desde") LocalDate desde);
 
+    @Query("""
+            SELECT r FROM Reservacion r
+            JOIN FETCH r.clase
+            WHERE r.usuario.id IN :ids
+              AND r.estado = com.theroom.backend.enums.EstadoReservacion.CONFIRMADA
+              AND r.fecha >= :desde
+            ORDER BY r.fecha ASC, r.clase.hora ASC
+            """)
+    List<Reservacion> findConfirmadasFuturasByUsuarioIds(
+            @Param("ids") List<Long> ids,
+            @Param("desde") LocalDate desde);
+
+    @Query("""
+            SELECT r FROM Reservacion r
+            JOIN FETCH r.clase
+            WHERE r.usuario.id IN :ids
+              AND r.estado = com.theroom.backend.enums.EstadoReservacion.CONFIRMADA
+              AND r.fecha >= :desde
+              AND r.fecha <= :hasta
+            """)
+    List<Reservacion> findConfirmadasByUsuarioIdsEnRango(
+            @Param("ids") List<Long> ids,
+            @Param("desde") LocalDate desde,
+            @Param("hasta") LocalDate hasta);
+
     @Query("SELECT r FROM Reservacion r ORDER BY r.fecha DESC, r.fechaCreacion DESC")
     List<Reservacion> findAllOrdenadas();
 

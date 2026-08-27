@@ -963,6 +963,7 @@ function buildNavUser(u) {
           <a class="udrop-link" onclick="openEquipo()">Gestionar equipo</a>
           <a class="udrop-link" onclick="openEspacios()">Espacios por clase</a>
           <a class="udrop-link" onclick="openClientes()">Clientes y créditos</a>
+          <a class="udrop-link" onclick="openClientesMes()">Clientes activos del mes</a>
           <a class="udrop-link" onclick="openHistorial()">Historial de ventas</a>` : ''}
         <a class="udrop-link danger" onclick="doLogout()">Cerrar sesión</a>
       </div>
@@ -981,6 +982,7 @@ function buildDrawerAuth(u) {
     <a class="drawer-user-link" onclick="closeDrawer();openEquipo()">Gestionar equipo</a>
     <a class="drawer-user-link" onclick="closeDrawer();openEspacios()">Espacios por clase</a>
     <a class="drawer-user-link" onclick="closeDrawer();openClientes()">Clientes y créditos</a>
+    <a class="drawer-user-link" onclick="closeDrawer();openClientesMes()">Clientes activos del mes</a>
     <a class="drawer-user-link" onclick="closeDrawer();openHistorial()">Historial de ventas</a>` : '';
   return `
     <div class="drawer-user-info">
@@ -3251,6 +3253,220 @@ function _setHistPageEfectivo(page) {
 
 function closeHistorial() { document.getElementById('historialOverlay').classList.remove('show'); }
 function historialOverlayClick(e) { if (e.target === document.getElementById('historialOverlay')) closeHistorial(); }
+
+/* ═══════════════════════════════════════════
+   CLIENTES ACTIVOS DEL MES (Admin)
+═══════════════════════════════════════════ */
+let _clientesMesData = null;
+let _clientesMesAnio = null;
+let _clientesMesMes = null;
+let _clientesMesDisc = 'ALL';
+
+async function openClientesMes() {
+  document.getElementById('clientesMesOverlay').classList.add('show');
+  document.getElementById('clientesMesBuscar').value = '';
+  _clientesMesDisc = 'ALL';
+  document.querySelectorAll('#clientesMesPills .ec-pill').forEach((b, i) => b.classList.toggle('active', i === 0));
+  const hoy = new Date();
+  _clientesMesAnio = hoy.getFullYear();
+  _clientesMesMes = hoy.getMonth() + 1;
+  await _cargarClientesMes();
+}
+
+function setClientesMesDisc(disc, btn) {
+  _clientesMesDisc = disc;
+  document.querySelectorAll('#clientesMesPills .ec-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _cargarClientesMes();
+}
+
+function clientesMesPrev() {
+  _clientesMesMes -= 1;
+  if (_clientesMesMes < 1) { _clientesMesMes = 12; _clientesMesAnio -= 1; }
+  _cargarClientesMes();
+}
+
+function clientesMesNext() {
+  const hoy = new Date();
+  const actualAnio = hoy.getFullYear();
+  const actualMes = hoy.getMonth() + 1;
+  if (_clientesMesAnio === actualAnio && _clientesMesMes >= actualMes) return;
+  _clientesMesMes += 1;
+  if (_clientesMesMes > 12) { _clientesMesMes = 1; _clientesMesAnio += 1; }
+  _cargarClientesMes();
+}
+
+function _filtrarClientesMes() {
+  _renderClientesMes();
+}
+
+async function _cargarClientesMes() {
+  document.getElementById('clientesMesResumen').innerHTML = '';
+  document.getElementById('clientesMesDemanda').innerHTML = '';
+  document.getElementById('clientesMesBody').innerHTML = '<p style="text-align:center;padding:32px;color:var(--stone)">Cargando…</p>';
+  document.getElementById('clientesMesFooter').textContent = '';
+  document.getElementById('clientesMesLabel').textContent = '…';
+
+  const hoy = new Date();
+  const esActual = _clientesMesAnio === hoy.getFullYear() && _clientesMesMes === (hoy.getMonth() + 1);
+  document.getElementById('clientesMesNextBtn').disabled = esActual;
+
+  try {
+    _clientesMesData = await api('GET',
+      `/admin/reportes/clientes-mes?anio=${_clientesMesAnio}&mes=${_clientesMesMes}&disciplina=${_clientesMesDisc}`);
+    document.getElementById('clientesMesLabel').textContent = _clientesMesData.mesLabel;
+    _renderClientesMes();
+  } catch (e) {
+    document.getElementById('clientesMesBody').innerHTML =
+      `<p style="text-align:center;padding:24px;color:var(--danger)">${e.message}</p>`;
+  }
+}
+
+function _renderClientesMes() {
+  if (!_clientesMesData) return;
+  const q = document.getElementById('clientesMesBuscar').value.toLowerCase().trim();
+  let clientes = _clientesMesData.clientes || [];
+  if (_clientesMesDisc !== 'ALL') {
+    clientes = clientes.filter(c =>
+      c.pagosMes.some(p => p.disciplina === _clientesMesDisc));
+  }
+  if (q) {
+    clientes = clientes.filter(c =>
+      (c.nombre + ' ' + c.apellido).toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q));
+  }
+
+  const fmt = n => `$${Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtFecha = iso => {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
+  const discTag = d => d === 'CYCLING'
+    ? '<span class="rpt-tag rpt-tag-cyc">Cycling</span>'
+    : '<span class="rpt-tag rpt-tag-pil">Pilates</span>';
+  const tipoLabel = t => t === 'SPINNING' ? 'Indoor Cycling' : 'Pilates';
+  const horaSlot = (dia, hora) => `${DIA_LABEL[dia] || dia} ${(hora || '').replace(/^0/, '')}`;
+
+  document.getElementById('clientesMesResumen').innerHTML = `
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi rpt-kpi-total">
+        <div class="rpt-kpi-val">${clientes.length}</div>
+        <div class="rpt-kpi-lbl">Clientes activos pagadores</div>
+      </div>
+      <div class="rpt-kpi">
+        <div class="rpt-kpi-val">${_clientesMesData.totalCycling}</div>
+        <div class="rpt-kpi-lbl">Pagaron Cycling</div>
+      </div>
+      <div class="rpt-kpi">
+        <div class="rpt-kpi-val">${_clientesMesData.totalPilates}</div>
+        <div class="rpt-kpi-lbl">Pagaron Pilates</div>
+      </div>
+      <div class="rpt-kpi rpt-kpi-total">
+        <div class="rpt-kpi-val">${fmt(_clientesMesData.totalCobrado)}</div>
+        <div class="rpt-kpi-lbl">Cobrado en el mes</div>
+      </div>
+    </div>`;
+
+  const demanda = (_clientesMesData.demandaHorarios || []).filter(d => {
+    if (_clientesMesDisc === 'ALL') return true;
+    const tipo = _clientesMesDisc === 'CYCLING' ? 'SPINNING' : 'PILATES';
+    return d.tipoClase === tipo;
+  }).slice(0, 12);
+
+  document.getElementById('clientesMesDemanda').innerHTML = demanda.length ? `
+    <div class="rpt-seccion">
+      <div class="rpt-seccion-header">
+        <strong>Demanda por horario</strong>
+        <span class="rpt-footer-count">Para evaluar nuevos horarios</span>
+      </div>
+      <table class="rpt-table">
+        <thead><tr>
+          <th>Horario</th>
+          <th>Disciplina</th>
+          <th>Con reserva</th>
+          <th>Habitual</th>
+          <th>Índice</th>
+        </tr></thead>
+        <tbody>
+          ${demanda.map(d => `
+            <tr>
+              <td><strong>${horaSlot(d.diaSemana, d.hora)}</strong></td>
+              <td>${discTag(d.tipoClase === 'SPINNING' ? 'CYCLING' : 'PILATES')}</td>
+              <td>${d.clientesConReserva}</td>
+              <td>${d.clientesHabituales}</td>
+              <td><span class="rpt-demanda-badge${d.indiceDemanda >= 6 ? ' alta' : ''}">${d.indiceDemanda}</span></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : '';
+
+  const body = document.getElementById('clientesMesBody');
+  const footer = document.getElementById('clientesMesFooter');
+
+  if (!clientes.length) {
+    body.innerHTML = '<p style="text-align:center;padding:32px;color:var(--stone)">Sin clientes activos con pago en este mes.</p>';
+    footer.textContent = '';
+    return;
+  }
+
+  body.innerHTML = clientes.map(c => {
+    const pagosHtml = c.pagosMes.map(p => `
+      <div class="cm-pago-item">
+        ${discTag(p.disciplina)}
+        <span>${p.paqueteNombre}${p.esMensual ? ' · <em>Mensual</em>' : ''}</span>
+        <span class="cm-pago-meta">${p.fechaPago} · ${fmt(p.monto)} · ${p.metodo}</span>
+      </div>`).join('');
+
+    const reservasHtml = c.reservasProximas.length
+      ? c.reservasProximas.map(r => `
+          <span class="cm-slot cm-slot-reserva">
+            ${fmtFecha(r.fecha)} · ${horaSlot(r.diaSemana, r.hora)} · ${tipoLabel(r.tipoClase)}
+            ${r.lugarNumero ? ` · Lugar ${r.lugarNumero}` : ''}
+          </span>`).join('')
+      : '<span class="cm-slot cm-slot-empty">Sin reservas próximas</span>';
+
+    const habitHtml = c.horariosHabituales.length
+      ? c.horariosHabituales.map(h => `
+          <span class="cm-slot cm-slot-hab">
+            ${horaSlot(h.diaSemana, h.hora)} · ${tipoLabel(h.tipoClase)} · ${h.veces}×
+          </span>`).join('')
+      : '<span class="cm-slot cm-slot-empty">Sin historial reciente</span>';
+
+    return `
+      <article class="cm-card">
+        <div class="cm-card-head">
+          <div>
+            <div class="cm-nombre">${c.nombre} ${c.apellido}</div>
+            <div class="cm-email">${c.email}${c.telefono ? ' · ' + c.telefono : ''}</div>
+          </div>
+          <div class="cm-creditos">
+            <span>Cycling: <strong>${c.creditosCycling}</strong>${c.creditosCyclingVencen ? ` (vence ${fmtFecha(c.creditosCyclingVencen)})` : ''}</span>
+            <span>Pilates: <strong>${c.creditosPilates}</strong>${c.creditosPilatesVencen ? ` (vence ${fmtFecha(c.creditosPilatesVencen)})` : ''}</span>
+          </div>
+        </div>
+        <div class="cm-section">
+          <div class="cm-section-title">Pagos del mes</div>
+          ${pagosHtml}
+        </div>
+        <div class="cm-section cm-section-cols">
+          <div>
+            <div class="cm-section-title">Próximas reservas</div>
+            <div class="cm-slots">${reservasHtml}</div>
+          </div>
+          <div>
+            <div class="cm-section-title">Horarios habituales <span class="cm-hint">(últimos 3 meses)</span></div>
+            <div class="cm-slots">${habitHtml}</div>
+          </div>
+        </div>
+      </article>`;
+  }).join('');
+
+  footer.textContent = `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} · ${_clientesMesData.mesLabel}`;
+}
+
+function closeClientesMes() { document.getElementById('clientesMesOverlay').classList.remove('show'); }
+function clientesMesOverlayClick(e) { if (e.target === document.getElementById('clientesMesOverlay')) closeClientesMes(); }
 
 /* ═══════════════════════════════════════════
    AVISO DE PRIVACIDAD / TÉRMINOS / CONTACTO

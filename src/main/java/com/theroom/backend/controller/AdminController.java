@@ -11,6 +11,7 @@ import com.theroom.backend.repository.UsuarioRepository;
 import com.theroom.backend.service.ClaseService;
 import com.theroom.backend.service.InstructorService;
 import com.theroom.backend.service.PagoService;
+import com.theroom.backend.service.ReporteService;
 import com.theroom.backend.service.ReservacionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AdminController {
     private final ClaseService claseService;
     private final InstructorService instructorService;
     private final PagoService pagoService;
+    private final ReporteService reporteService;
     private final UsuarioRepository usuarioRepository;
     private final InstructorRepository instructorRepository;
 
@@ -290,5 +292,14 @@ public class AdminController {
     public ResponseEntity<java.util.Map<String, Object>> historialPagos(
             @RequestParam(defaultValue = "dia") String periodo) {
         return ResponseEntity.ok(pagoService.getHistorial(periodo));
+    }
+
+    // GET /api/v1/admin/reportes/clientes-mes?anio=&mes=&disciplina=ALL|CYCLING|PILATES
+    @GetMapping("/reportes/clientes-mes")
+    public ResponseEntity<ClientesMesReporteDTO> reporteClientesMes(
+            @RequestParam(required = false) Integer anio,
+            @RequestParam(required = false) Integer mes,
+            @RequestParam(defaultValue = "ALL") String disciplina) {
+        return ResponseEntity.ok(reporteService.getClientesActivosPagadoresMes(anio, mes, disciplina));
     }
 }
