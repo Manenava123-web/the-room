@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@200;300;400;500&display=swap"/></noscript>
-<link rel="stylesheet" href="styles.css?v=30"/>
+<link rel="stylesheet" href="styles.css?v=31"/>
 </head>
 <body>
 
@@ -1126,7 +1126,15 @@
     <button class="modal-close" onclick="closeClientesMes()">✕</button>
     <div class="modal-logo">The <em>Room</em></div>
     <h2 class="modal-title">Clientes activos del mes</h2>
-    <p class="modal-sub">Clientes con cuenta activa que pagaron en el mes · horarios reservados y preferidos</p>
+    <p class="modal-sub">Quién pagó este mes, qué clases tiene agendadas y qué horarios prefiere</p>
+    <div class="cm-guia" id="clientesMesGuia">
+      <strong>¿Para qué sirve este reporte?</strong>
+      <ul>
+        <li><b>Resumen:</b> cuántas personas pagaron y cuánto se cobró en el mes.</li>
+        <li><b>Horarios más pedidos:</b> ayuda a decidir si conviene abrir clases nuevas cuando un horario se llena mucho.</li>
+        <li><b>Detalle por cliente:</b> qué compró, clases que ya reservó y horarios que suele elegir.</li>
+      </ul>
+    </div>
     <div class="rpt-mes-nav">
       <button type="button" class="week-nav-btn" onclick="clientesMesPrev()" aria-label="Mes anterior">&#8592;</button>
       <span class="rpt-mes-label" id="clientesMesLabel"></span>
@@ -1142,6 +1150,7 @@
     </div>
     <div class="rpt-resumen" id="clientesMesResumen"></div>
     <div id="clientesMesDemanda" class="rpt-table-wrap"></div>
+    <h3 class="cm-seccion-titulo" id="clientesMesListaTitulo">Detalle por cliente</h3>
     <div id="clientesMesBody" class="rpt-clientes-mes-wrap"></div>
     <div class="rpt-footer" id="clientesMesFooter"></div>
   </div>
@@ -1292,6 +1301,6 @@
 
 <script defer src="https://js.openpay.mx/openpay.v1.min.js"></script>
 <script defer src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
-<script defer src="main.js?v=28"></script>
+<script defer src="main.js?v=29"></script>
 </body>
 </html>
