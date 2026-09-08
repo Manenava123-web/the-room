@@ -227,8 +227,8 @@ public class NotificacionService {
                 ? usuario.getCreditosCyclingVencen()
                 : usuario.getCreditosPilatesVencen();
         String vigencia = vence != null
-                ? vence.getDayOfMonth() + "/" + vence.getMonthValue() + "/" + vence.getYear()
-                : paquete.getVigenciaDias() + " d&iacute;as";
+                ? String.format("%02d/%02d/%d", vence.getDayOfMonth(), vence.getMonthValue(), vence.getYear())
+                : paquete.getVigenciaDias() + " d&iacute;as h&aacute;biles";
 
         String precio = String.format("$%,.2f", paquete.getPrecio().doubleValue());
         String clases = paquete.getNumClases() + " clase" + (paquete.getNumClases() > 1 ? "s" : "");

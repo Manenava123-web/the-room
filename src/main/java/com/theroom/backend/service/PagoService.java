@@ -43,6 +43,7 @@ public class PagoService {
     private final PagoRepository pagoRepository;
     private final RestTemplate restTemplate;
     private final NotificacionService notificacionService;
+    private final CreditosService creditosService;
 
     @Value("${openpay.merchant-id}")
     private String merchantId;
@@ -57,7 +58,10 @@ public class PagoService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void sembrarPaquetes() {
-        if (paqueteRepository.count() > 0) return;
+        if (paqueteRepository.count() > 0) {
+            sincronizarVigenciaMensual();
+            return;
+        }
         Arrays.stream(TipoPaquete.values()).forEach(t ->
             paqueteRepository.save(Paquete.builder()
                 .nombre(t.descripcion)
@@ -69,6 +73,17 @@ public class PagoService {
                 .activo(true)
                 .build())
         );
+    }
+
+    /** Asegura que los paquetes mensuales en BD usen 20 días hábiles de vigencia. */
+    @Transactional
+    public void sincronizarVigenciaMensual() {
+        paqueteRepository.findByEsMensualTrue().forEach(p -> {
+            if (p.getVigenciaDias() != CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES) {
+                p.setVigenciaDias(CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES);
+                paqueteRepository.save(p);
+            }
+        });
     }
 
     // ── Pago con tarjeta (clientes) ────────────────────────────
@@ -88,7 +103,7 @@ public class PagoService {
                 usuario
         );
 
-        aplicarCreditos(usuario, paquete);
+        creditosService.aplicarCreditos(usuario, paquete);
         usuarioRepository.save(usuario);
 
         pagoRepository.save(Pago.builder()
@@ -102,6 +117,7 @@ public class PagoService {
                 .metodo("TARJETA")
                 .transaccionId(transaccionId)
                 .clasesAgregadas(paquete.getNumClases())
+                .fechaPago(java.time.LocalDateTime.now(CreditosService.ZONA_MX))
                 .build());
 
         notificacionService.enviarConfirmacion(usuario, paquete, transaccionId, "Tarjeta (OpenPay)");
@@ -126,7 +142,7 @@ public class PagoService {
         Usuario usuario = usuarioRepository.findById(request.getUsuarioId())
                 .orElseThrow(() -> new AppException("Usuario no encontrado", HttpStatus.NOT_FOUND));
 
-        aplicarCreditos(usuario, paquete);
+        creditosService.aplicarCreditos(usuario, paquete);
         usuarioRepository.save(usuario);
 
         pagoRepository.save(Pago.builder()
@@ -140,6 +156,7 @@ public class PagoService {
                 .metodo("EFECTIVO")
                 .transaccionId(null)
                 .clasesAgregadas(paquete.getNumClases())
+                .fechaPago(java.time.LocalDateTime.now(CreditosService.ZONA_MX))
                 .build());
 
         notificacionService.enviarConfirmacion(usuario, paquete, null, "Efectivo");
@@ -176,6 +193,7 @@ public class PagoService {
     @Transactional
     public PaqueteDTO crearPaquete(PaqueteAdminRequest req) {
         validarRequest(req);
+        normalizarVigenciaMensual(req);
         Paquete p = paqueteRepository.save(Paquete.builder()
                 .nombre(req.getNombre().trim())
                 .numClases(req.getNumClases())
@@ -191,6 +209,7 @@ public class PagoService {
     @Transactional
     public PaqueteDTO editarPaquete(Long id, PaqueteAdminRequest req) {
         validarRequest(req);
+        normalizarVigenciaMensual(req);
         Paquete p = resolverPaqueteById(id);
         p.setNombre(req.getNombre().trim());
         p.setNumClases(req.getNumClases());
@@ -227,6 +246,12 @@ public class PagoService {
                 .orElseThrow(() -> new AppException("Paquete no encontrado", HttpStatus.NOT_FOUND));
     }
 
+    private void normalizarVigenciaMensual(PaqueteAdminRequest req) {
+        if (req.isEsMensual()) {
+            req.setVigenciaDias(CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES);
+        }
+    }
+
     private void validarRequest(PaqueteAdminRequest req) {
         if (req.getNombre() == null || req.getNombre().isBlank())
             throw new AppException("El nombre es obligatorio", HttpStatus.BAD_REQUEST);
@@ -240,41 +265,6 @@ public class PagoService {
         catch (Exception e) { throw new AppException("Disciplina inválida", HttpStatus.BAD_REQUEST); }
     }
 
-    private void aplicarCreditos(Usuario usuario, Paquete paquete) {
-        LocalDate today = LocalDate.now(ZoneId.of("America/Mexico_City"));
-        if (paquete.getDisciplina() == TipoDisciplina.CYCLING) {
-            LocalDate actual = usuario.getCreditosCyclingVencen();
-            boolean vigente = actual != null && actual.isAfter(today);
-            usuario.setCreditosCycling(vigente
-                    ? usuario.getCreditosCycling() + paquete.getNumClases()
-                    : paquete.getNumClases());
-            LocalDate base = vigente ? actual : today;
-            usuario.setCreditosCyclingVencen(sumarDiasHabiles(base, paquete.getVigenciaDias()));
-        } else {
-            LocalDate actual = usuario.getCreditosPilatesVencen();
-            boolean vigente = actual != null && actual.isAfter(today);
-            usuario.setCreditosPilates(vigente
-                    ? usuario.getCreditosPilates() + paquete.getNumClases()
-                    : paquete.getNumClases());
-            LocalDate base = vigente ? actual : today;
-            usuario.setCreditosPilatesVencen(sumarDiasHabiles(base, paquete.getVigenciaDias()));
-        }
-    }
-
-    // Suma N días hábiles (Lun–Vie) a partir de una fecha
-    private LocalDate sumarDiasHabiles(LocalDate inicio, int diasHabiles) {
-        LocalDate fecha = inicio;
-        int contados = 0;
-        while (contados < diasHabiles) {
-            fecha = fecha.plusDays(1);
-            DayOfWeek dia = fecha.getDayOfWeek();
-            if (dia != DayOfWeek.SATURDAY && dia != DayOfWeek.SUNDAY) {
-                contados++;
-            }
-        }
-        return fecha;
-    }
-
     private CreditosDTO toCreditosDTO(Usuario u) {
         return CreditosDTO.builder()
                 .creditosCycling(u.getCreditosCycling())
@@ -285,13 +275,16 @@ public class PagoService {
     }
 
     private PaqueteDTO toPaqueteDTO(Paquete p) {
+        int vigencia = p.isEsMensual()
+                ? CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES
+                : p.getVigenciaDias();
         return PaqueteDTO.builder()
                 .id(p.getId())
                 .nombre(p.getNombre())
                 .numClases(p.getNumClases())
                 .precio(p.getPrecio().doubleValue())
                 .disciplina(p.getDisciplina().name())
-                .vigenciaDias(p.getVigenciaDias())
+                .vigenciaDias(vigencia)
                 .esMensual(p.isEsMensual())
                 .activo(p.isActivo())
                 .build();

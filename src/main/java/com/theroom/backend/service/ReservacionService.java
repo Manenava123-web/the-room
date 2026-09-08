@@ -333,14 +333,8 @@ public class ReservacionService {
             if (u.getRol() == RolUsuario.CLIENTE) {
                 if (disc == TipoDisciplina.CYCLING) {
                     u.setCreditosCycling(u.getCreditosCycling() + 1);
-                    if (u.getCreditosCyclingVencen() != null) {
-                        u.setCreditosCyclingVencen(u.getCreditosCyclingVencen().plusDays(1));
-                    }
                 } else {
                     u.setCreditosPilates(u.getCreditosPilates() + 1);
-                    if (u.getCreditosPilatesVencen() != null) {
-                        u.setCreditosPilatesVencen(u.getCreditosPilatesVencen().plusDays(1));
-                    }
                 }
                 usuarioRepository.save(u);
 
