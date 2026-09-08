@@ -54,6 +54,9 @@ public class Pago {
 
     @PrePersist
     protected void onCreate() {
-        if (fechaPago == null) fechaPago = LocalDateTime.now();
+        if (fechaPago == null) {
+            fechaPago = java.time.LocalDateTime.now(
+                    java.time.ZoneId.of("America/Mexico_City"));
+        }
     }
 }

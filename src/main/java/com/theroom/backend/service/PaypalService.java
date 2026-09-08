@@ -37,6 +37,7 @@ public class PaypalService {
     private final UsuarioRepository usuarioRepository;
     private final PagoRepository pagoRepository;
     private final NotificacionService notificacionService;
+    private final CreditosService creditosService;
 
     @Value("${paypal.client-id:}")
     private String clientId;
@@ -158,7 +159,7 @@ public class PaypalService {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException("Usuario no encontrado", HttpStatus.NOT_FOUND));
 
-        aplicarCreditos(usuario, paquete);
+        creditosService.aplicarCreditos(usuario, paquete);
         usuarioRepository.save(usuario);
 
         pagoRepository.save(Pago.builder()
@@ -172,6 +173,7 @@ public class PaypalService {
                 .metodo("PAYPAL")
                 .transaccionId(orderId)
                 .clasesAgregadas(paquete.getNumClases())
+                .fechaPago(java.time.LocalDateTime.now(CreditosService.ZONA_MX))
                 .build());
 
         notificacionService.enviarConfirmacion(usuario, paquete, orderId, "PayPal");
@@ -186,39 +188,5 @@ public class PaypalService {
                 .creditosPilates(usuario.getCreditosPilates())
                 .creditosPilatesVencen(usuario.getCreditosPilatesVencen())
                 .build();
-    }
-
-    private void aplicarCreditos(Usuario usuario, Paquete paquete) {
-        LocalDate today = LocalDate.now(ZoneId.of("America/Mexico_City"));
-        if (paquete.getDisciplina() == TipoDisciplina.CYCLING) {
-            LocalDate actual = usuario.getCreditosCyclingVencen();
-            boolean vigente = actual != null && actual.isAfter(today);
-            usuario.setCreditosCycling(vigente
-                    ? usuario.getCreditosCycling() + paquete.getNumClases()
-                    : paquete.getNumClases());
-            LocalDate base = vigente ? actual : today;
-            usuario.setCreditosCyclingVencen(sumarDiasHabiles(base, paquete.getVigenciaDias()));
-        } else {
-            LocalDate actual = usuario.getCreditosPilatesVencen();
-            boolean vigente = actual != null && actual.isAfter(today);
-            usuario.setCreditosPilates(vigente
-                    ? usuario.getCreditosPilates() + paquete.getNumClases()
-                    : paquete.getNumClases());
-            LocalDate base = vigente ? actual : today;
-            usuario.setCreditosPilatesVencen(sumarDiasHabiles(base, paquete.getVigenciaDias()));
-        }
-    }
-
-    private LocalDate sumarDiasHabiles(LocalDate inicio, int diasHabiles) {
-        LocalDate fecha = inicio;
-        int contados = 0;
-        while (contados < diasHabiles) {
-            fecha = fecha.plusDays(1);
-            java.time.DayOfWeek dia = fecha.getDayOfWeek();
-            if (dia != java.time.DayOfWeek.SATURDAY && dia != java.time.DayOfWeek.SUNDAY) {
-                contados++;
-            }
-        }
-        return fecha;
     }
 }

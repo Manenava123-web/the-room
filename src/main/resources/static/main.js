@@ -1931,6 +1931,10 @@ function _aplicarPaquetes(lista) {
   _renderPkgList('pkgListPilates', pilates);
 }
 
+function _fmtVigenciaPaquete(dias) {
+  return `${dias} día${dias !== 1 ? 's' : ''} hábil${dias !== 1 ? 'es' : ''} (lun–vie)`;
+}
+
 async function loadPaquetes() {
   const cached = _cacheGet('paquetes');
   if (cached) _aplicarPaquetes(cached);
@@ -1949,7 +1953,7 @@ function _renderPkgList(containerId, paquetes) {
     const badge     = p.esMensual ? '<span class="paquete-badge">Más popular</span>' : '';
     const label     = p.esMensual ? 'Plan mensual' : (p.numClases > 1 ? 'clases' : 'clase');
     const precio    = `$${Number(p.precio).toLocaleString('es-MX')}`;
-    const vigencia  = p.vigenciaDias <= 15 ? `${p.vigenciaDias} días` : '1 mes';
+    const vigencia  = _fmtVigenciaPaquete(p.vigenciaDias);
     const icon      = containerId.includes('Cycling') ? '🚴' : '🧘';
     return `<div class="paquete-card${featured}">
       ${badge}
@@ -2187,7 +2191,7 @@ function _renderEfPaquetes() {
       <div class="ef-disc-body">
         ${paquetes.map(p => {
           const label = p.esMensual ? `Mensual <span style="opacity:.6;font-size:11px">(${p.clases} clases)</span>` : `${p.clases} clase${p.clases > 1 ? 's' : ''}`;
-          const vigencia = p.vigenciaDias === 15 ? '15 días' : '1 mes';
+          const vigencia = _fmtVigenciaPaquete(p.vigenciaDias);
           return `<label class="ef-pkg">
             <input type="radio" name="efPkg" value="${p.id}"/>
             <span class="ef-pkg-label">${label}<span class="ef-pkg-vigencia">${vigencia}</span></span>
@@ -2377,7 +2381,7 @@ function _renderPaquetesAdmin() {
     <div class="gpaq-row${p.activo ? '' : ' gpaq-row-inactive'}">
       <div class="gpaq-row-info">
         <span class="gpaq-row-nombre">${p.nombre}${p.esMensual ? ' <span class="gpaq-badge-mensual">Mensual</span>' : ''}</span>
-        <span class="gpaq-row-meta">${p.numClases} clase${p.numClases > 1 ? 's' : ''} · ${fmtPrecio(p)} · ${p.vigenciaDias} días vigencia</span>
+        <span class="gpaq-row-meta">${p.numClases} clase${p.numClases > 1 ? 's' : ''} · ${fmtPrecio(p)} · ${_fmtVigenciaPaquete(p.vigenciaDias)}</span>
       </div>
       <div class="gpaq-row-actions">
         ${!p.activo ? '<span class="inst-badge-inactivo">Inactivo</span>' : ''}
@@ -2406,6 +2410,19 @@ function _renderPaquetesAdmin() {
     renderSection('Pilates Reformer', 'Control & fuerza · Flexibilidad', 'pilates', pilates);
 }
 
+const VIGENCIA_MENSUAL_HABILES = 20;
+
+function _syncGpaqVigenciaMensual() {
+  const esMensual = document.getElementById('gpaqEsMensual').checked;
+  const input = document.getElementById('gpaqVigencia');
+  if (esMensual) {
+    input.value = String(VIGENCIA_MENSUAL_HABILES);
+    input.readOnly = true;
+  } else {
+    input.readOnly = false;
+  }
+}
+
 function openPaqueteForm(id) {
   editingPaqueteId = id;
   const wrap = document.getElementById('gpaqFormWrap');
@@ -2418,8 +2435,9 @@ function openPaqueteForm(id) {
     document.getElementById('gpaqDisciplina').value = 'CYCLING';
     document.getElementById('gpaqNumClases').value  = '';
     document.getElementById('gpaqPrecio').value     = '';
-    document.getElementById('gpaqVigencia').value   = '30';
+    document.getElementById('gpaqVigencia').value   = '20';
     document.getElementById('gpaqEsMensual').checked = false;
+    _syncGpaqVigenciaMensual();
   } else {
     const p = paquetesAdminData.find(x => x.id === id);
     if (!p) return;
@@ -2430,6 +2448,7 @@ function openPaqueteForm(id) {
     document.getElementById('gpaqPrecio').value      = p.precio;
     document.getElementById('gpaqVigencia').value    = p.vigenciaDias;
     document.getElementById('gpaqEsMensual').checked = p.esMensual;
+    _syncGpaqVigenciaMensual();
   }
 
   wrap.style.display = 'block';
@@ -2448,12 +2467,13 @@ function savePaquete() {
   const precio     = parseFloat(document.getElementById('gpaqPrecio').value);
   const vigencia   = parseInt(document.getElementById('gpaqVigencia').value);
   const esMensual  = document.getElementById('gpaqEsMensual').checked;
+  const vigenciaFinal = esMensual ? VIGENCIA_MENSUAL_HABILES : vigencia;
 
   clearModalAlert('gpaqFormAlert');
   if (!nombre)            { showModalAlert('gpaqFormAlert', 'El nombre es obligatorio.'); return; }
   if (!numClases || numClases < 1) { showModalAlert('gpaqFormAlert', 'Número de clases inválido.'); return; }
   if (!precio || precio <= 0)      { showModalAlert('gpaqFormAlert', 'El precio debe ser mayor a 0.'); return; }
-  if (!vigencia || vigencia < 1)   { showModalAlert('gpaqFormAlert', 'La vigencia debe ser al menos 1 día.'); return; }
+  if (!vigencia || vigencia < 1)   { showModalAlert('gpaqFormAlert', 'La vigencia debe ser al menos 1 día hábil.'); return; }
 
   const accion = editingPaqueteId ? 'actualizar' : 'crear';
   showConfirm(
@@ -2461,7 +2481,7 @@ function savePaquete() {
     `¿Confirmas ${accion} el paquete "${nombre}"?`,
     'Confirmar',
     'btn-accent',
-    () => _execSavePaquete({ nombre, disciplina, numClases, precio, vigenciaDias: vigencia, esMensual })
+    () => _execSavePaquete({ nombre, disciplina, numClases, precio, vigenciaDias: vigenciaFinal, esMensual })
   );
 }
 
