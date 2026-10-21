@@ -8,7 +8,7 @@ public enum TipoPaquete {
     PAQUETE_3  (3,  new BigDecimal("330.00"), "3 clases Pilates",                TipoDisciplina.PILATES, 30),
     PAQUETE_6  (6,  new BigDecimal("600.00"), "6 clases Pilates",                TipoDisciplina.PILATES, 30),
     PAQUETE_10 (10, new BigDecimal("900.00"), "10 clases Pilates",               TipoDisciplina.PILATES, 30),
-    PAQUETE_MES(20, new BigDecimal("500.00"), "Mensual Pilates (20 clases)",     TipoDisciplina.PILATES, 20),
+    PAQUETE_MES(20, new BigDecimal("500.00"), "Mensual Pilates (20 clases)",     TipoDisciplina.PILATES, 25),
     // Indoor Cycling
     CYCLING_1  (1,  new BigDecimal("65.00"),  "1 clase Indoor Cycling",          TipoDisciplina.CYCLING, 15),
     CYCLING_5  (5,  new BigDecimal("275.00"), "5 clases Indoor Cycling",         TipoDisciplina.CYCLING, 30),
