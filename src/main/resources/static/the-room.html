@@ -866,7 +866,7 @@
         </div>
         <div class="form-group">
           <label>Disciplina</label>
-          <select class="form-input" id="gpaqDisciplina">
+          <select class="form-input" id="gpaqDisciplina" onchange="_syncGpaqVigenciaMensual()">
             <option value="CYCLING">Indoor Cycling</option>
             <option value="PILATES">Pilates Reformer</option>
           </select>
@@ -881,12 +881,13 @@
         </div>
         <div class="form-group">
           <label>Vigencia (días hábiles lun–vie)</label>
-          <input type="number" class="form-input" id="gpaqVigencia" min="1" max="365" placeholder="20"/>
+          <input type="number" class="form-input" id="gpaqVigencia" min="1" max="365" placeholder="15"/>
+          <p class="clase-form-hint" id="gpaqVigenciaHint">Solo aplica a paquetes que no son mensuales (días hábiles lun–vie).</p>
         </div>
         <div class="form-group gpaq-check-group">
           <label class="gpaq-check-label">
             <input type="checkbox" id="gpaqEsMensual" onchange="_syncGpaqVigenciaMensual()"/>
-            <span>Plan mensual (20 días hábiles de vigencia)</span>
+            <span>Plan mensual</span>
           </label>
         </div>
       </div>
@@ -1212,7 +1213,7 @@
       <h3>Reservaciones</h3>
       <ul>
         <li>Las reservaciones se confirman únicamente cuando el usuario cuenta con créditos vigentes de la disciplina correspondiente.</li>
-        <li>Cada paquete tiene una vigencia en días hábiles (lunes a viernes) a partir de la fecha de compra; los créditos vencidos no pueden utilizarse.</li>
+        <li>Indoor Cycling mensual: vence el mismo día del mes siguiente (ej. 5 oct → 5 nov). Pilates mensual: 25 días hábiles (lun–vie). Los demás paquetes usan la vigencia en días hábiles indicada en el catálogo.</li>
         <li>Solo se permite una reservación por clase por usuario y fecha.</li>
       </ul>
 
@@ -1301,6 +1302,6 @@
 
 <script defer src="https://js.openpay.mx/openpay.v1.min.js"></script>
 <script defer src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
-<script defer src="main.js?v=31"></script>
+<script defer src="main.js?v=33"></script>
 </body>
 </html>

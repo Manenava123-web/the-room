@@ -58,32 +58,33 @@ public class PagoService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void sembrarPaquetes() {
-        if (paqueteRepository.count() > 0) {
-            sincronizarVigenciaMensual();
+        if (paqueteRepository.count() == 0) {
+            Arrays.stream(TipoPaquete.values()).forEach(t ->
+                paqueteRepository.save(Paquete.builder()
+                    .nombre(t.descripcion)
+                    .numClases(t.numClases)
+                    .precio(t.precio)
+                    .disciplina(t.disciplina)
+                    .vigenciaDias(t.vigenciaDias)
+                    .esMensual(t.name().endsWith("_MES"))
+                    .activo(true)
+                    .build())
+            );
             return;
         }
-        Arrays.stream(TipoPaquete.values()).forEach(t ->
-            paqueteRepository.save(Paquete.builder()
-                .nombre(t.descripcion)
-                .numClases(t.numClases)
-                .precio(t.precio)
-                .disciplina(t.disciplina)
-                .vigenciaDias(t.vigenciaDias)
-                .esMensual(t.name().endsWith("_MES"))
-                .activo(true)
-                .build())
-        );
+        sincronizarVigenciaPilatesMensual();
     }
 
-    /** Asegura que los paquetes mensuales en BD usen 20 días hábiles de vigencia. */
+    /** Catálogo: plan mensual Pilates con 25 días hábiles (el cálculo real está en {@link CreditosService}). */
     @Transactional
-    public void sincronizarVigenciaMensual() {
-        paqueteRepository.findByEsMensualTrue().forEach(p -> {
-            if (p.getVigenciaDias() != CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES) {
-                p.setVigenciaDias(CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES);
-                paqueteRepository.save(p);
-            }
-        });
+    public void sincronizarVigenciaPilatesMensual() {
+        paqueteRepository.findByEsMensualTrue().stream()
+                .filter(p -> p.getDisciplina() == TipoDisciplina.PILATES)
+                .filter(p -> p.getVigenciaDias() != CreditosService.VIGENCIA_PILATES_MENSUAL_HABILES)
+                .forEach(p -> {
+                    p.setVigenciaDias(CreditosService.VIGENCIA_PILATES_MENSUAL_HABILES);
+                    paqueteRepository.save(p);
+                });
     }
 
     // ── Pago con tarjeta (clientes) ────────────────────────────
@@ -193,7 +194,6 @@ public class PagoService {
     @Transactional
     public PaqueteDTO crearPaquete(PaqueteAdminRequest req) {
         validarRequest(req);
-        normalizarVigenciaMensual(req);
         Paquete p = paqueteRepository.save(Paquete.builder()
                 .nombre(req.getNombre().trim())
                 .numClases(req.getNumClases())
@@ -209,7 +209,6 @@ public class PagoService {
     @Transactional
     public PaqueteDTO editarPaquete(Long id, PaqueteAdminRequest req) {
         validarRequest(req);
-        normalizarVigenciaMensual(req);
         Paquete p = resolverPaqueteById(id);
         p.setNombre(req.getNombre().trim());
         p.setNumClases(req.getNumClases());
@@ -246,12 +245,6 @@ public class PagoService {
                 .orElseThrow(() -> new AppException("Paquete no encontrado", HttpStatus.NOT_FOUND));
     }
 
-    private void normalizarVigenciaMensual(PaqueteAdminRequest req) {
-        if (req.isEsMensual()) {
-            req.setVigenciaDias(CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES);
-        }
-    }
-
     private void validarRequest(PaqueteAdminRequest req) {
         if (req.getNombre() == null || req.getNombre().isBlank())
             throw new AppException("El nombre es obligatorio", HttpStatus.BAD_REQUEST);
@@ -275,16 +268,13 @@ public class PagoService {
     }
 
     private PaqueteDTO toPaqueteDTO(Paquete p) {
-        int vigencia = p.isEsMensual()
-                ? CreditosService.VIGENCIA_MENSUAL_DIAS_HABILES
-                : p.getVigenciaDias();
         return PaqueteDTO.builder()
                 .id(p.getId())
                 .nombre(p.getNombre())
                 .numClases(p.getNumClases())
                 .precio(p.getPrecio().doubleValue())
                 .disciplina(p.getDisciplina().name())
-                .vigenciaDias(vigencia)
+                .vigenciaDias(p.getVigenciaDias())
                 .esMensual(p.isEsMensual())
                 .activo(p.isActivo())
                 .build();

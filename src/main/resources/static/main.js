@@ -1931,7 +1931,14 @@ function _aplicarPaquetes(lista) {
   _renderPkgList('pkgListPilates', pilates);
 }
 
-function _fmtVigenciaPaquete(dias) {
+function _fmtVigenciaPaquete(p) {
+  if (p.esMensual && p.disciplina === 'CYCLING') {
+    return '1 mes (vence el mismo día del mes siguiente)';
+  }
+  if (p.esMensual && p.disciplina === 'PILATES') {
+    return '25 días hábiles (lun–vie)';
+  }
+  const dias = p.vigenciaDias;
   return `${dias} día${dias !== 1 ? 's' : ''} hábil${dias !== 1 ? 'es' : ''} (lun–vie)`;
 }
 
@@ -1953,7 +1960,7 @@ function _renderPkgList(containerId, paquetes) {
     const badge     = p.esMensual ? '<span class="paquete-badge">Más popular</span>' : '';
     const label     = p.esMensual ? 'Plan mensual' : (p.numClases > 1 ? 'clases' : 'clase');
     const precio    = `$${Number(p.precio).toLocaleString('es-MX')}`;
-    const vigencia  = _fmtVigenciaPaquete(p.vigenciaDias);
+    const vigencia  = _fmtVigenciaPaquete(p);
     const icon      = containerId.includes('Cycling') ? '🚴' : '🧘';
     return `<div class="paquete-card${featured}">
       ${badge}
@@ -2191,7 +2198,7 @@ function _renderEfPaquetes() {
       <div class="ef-disc-body">
         ${paquetes.map(p => {
           const label = p.esMensual ? `Mensual <span style="opacity:.6;font-size:11px">(${p.clases} clases)</span>` : `${p.clases} clase${p.clases > 1 ? 's' : ''}`;
-          const vigencia = _fmtVigenciaPaquete(p.vigenciaDias);
+          const vigencia = _fmtVigenciaPaquete(p);
           return `<label class="ef-pkg">
             <input type="radio" name="efPkg" value="${p.id}"/>
             <span class="ef-pkg-label">${label}<span class="ef-pkg-vigencia">${vigencia}</span></span>
@@ -2381,7 +2388,7 @@ function _renderPaquetesAdmin() {
     <div class="gpaq-row${p.activo ? '' : ' gpaq-row-inactive'}">
       <div class="gpaq-row-info">
         <span class="gpaq-row-nombre">${p.nombre}${p.esMensual ? ' <span class="gpaq-badge-mensual">Mensual</span>' : ''}</span>
-        <span class="gpaq-row-meta">${p.numClases} clase${p.numClases > 1 ? 's' : ''} · ${fmtPrecio(p)} · ${_fmtVigenciaPaquete(p.vigenciaDias)}</span>
+        <span class="gpaq-row-meta">${p.numClases} clase${p.numClases > 1 ? 's' : ''} · ${fmtPrecio(p)} · ${_fmtVigenciaPaquete(p)}</span>
       </div>
       <div class="gpaq-row-actions">
         ${!p.activo ? '<span class="inst-badge-inactivo">Inactivo</span>' : ''}
@@ -2410,16 +2417,23 @@ function _renderPaquetesAdmin() {
     renderSection('Pilates Reformer', 'Control & fuerza · Flexibilidad', 'pilates', pilates);
 }
 
-const VIGENCIA_MENSUAL_HABILES = 20;
-
 function _syncGpaqVigenciaMensual() {
   const esMensual = document.getElementById('gpaqEsMensual').checked;
+  const disciplina = document.getElementById('gpaqDisciplina').value;
   const input = document.getElementById('gpaqVigencia');
+  const hint = document.getElementById('gpaqVigenciaHint');
   if (esMensual) {
-    input.value = String(VIGENCIA_MENSUAL_HABILES);
     input.readOnly = true;
+    if (disciplina === 'PILATES') {
+      input.value = '25';
+      if (hint) hint.textContent = 'Plan mensual Pilates: 25 días hábiles (lun–vie) desde la compra.';
+    } else {
+      input.value = '30';
+      if (hint) hint.textContent = 'Plan mensual Indoor Cycling: vence el mismo día del mes siguiente (no usa este número).';
+    }
   } else {
     input.readOnly = false;
+    if (hint) hint.textContent = 'Paquetes no mensuales: días hábiles lun–vie según vigencia.';
   }
 }
 
@@ -2467,7 +2481,9 @@ function savePaquete() {
   const precio     = parseFloat(document.getElementById('gpaqPrecio').value);
   const vigencia   = parseInt(document.getElementById('gpaqVigencia').value);
   const esMensual  = document.getElementById('gpaqEsMensual').checked;
-  const vigenciaFinal = esMensual ? VIGENCIA_MENSUAL_HABILES : vigencia;
+  const vigenciaFinal = esMensual
+    ? (disciplina === 'PILATES' ? 25 : 30)
+    : vigencia;
 
   clearModalAlert('gpaqFormAlert');
   if (!nombre)            { showModalAlert('gpaqFormAlert', 'El nombre es obligatorio.'); return; }
